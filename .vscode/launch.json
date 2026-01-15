@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: ATM App (Main)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Python: Unit Tests",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

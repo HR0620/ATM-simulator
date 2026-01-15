@@ -1,5 +1,5 @@
-PySide6
-opencv-python
-mediapipe
-numpy
+opencv-python==4.9.0.80
+tensorflow
+Pillow
 PyYAML
+numpy==1.26.4

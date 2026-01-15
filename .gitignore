@@ -1,0 +1,5 @@
+#.venvを無視する
+.venv/
+
+#testsを無視する
+tests/

@@ -1,0 +1,36 @@
+camera:
+  device_id: 0       # カメラのデバイスID（通常は0。外付けなら1の場合あり）
+  width: 640         # カメラの横幅解像度
+  height: 480        # カメラの縦幅解像度
+  fps: 30            # フレームレート
+
+model:
+  path: "model/keras_model.h5"     # Kerasモデルファイルのパス
+  labels_path: "model/labels.txt"  # ラベル定義ファイルのパス
+
+ui:
+  window_width: 1024               # アプリウィンドウの幅
+  window_height: 768               # アプリウィンドウの高さ
+  title: "AI非接触ATMシミュレーター"   # ウィンドウタイトル
+
+face_guide:
+  required_frames: 30              # 認証に必要な連続認識フレーム数（約1秒）
+  guide_box_ratio: 0.6             # 画面に対するガイド枠の比率
+  colors:
+    waiting: "#FFFFFF"             # 待機中（白）
+    detecting: "#FFD700"           # 認識中（黄色）
+    confirmed: "#00FF00"           # 完了（緑）
+
+atm:
+  buttons:
+    left: "左ボタン"
+    center: "中央ボタン"
+    right: "右ボタン"
+  colors:
+    default_bg: "#F0F0F0"          # 背景色
+    highlight_bg: "#4CAF50"        # 選択時のハイライト色
+
+gesture:
+  confidence_threshold: 0.85       # AIの確信度しきい値（これ以下は無視）
+  required_frames: 5               # ジェスチャー確定に必要な連続フレーム数
+  free_class_name: "free"          # 「何もしていない」を表すクラス名
