@@ -45,7 +45,8 @@ class CameraManager:
             # 解像度の設定
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-            print("カメラを開始しました。")
+
+            print(f"カメラを開始しました。")
 
         except Exception as e:
             print(f"カメラ初期化中に例外が発生しました: {e}")
@@ -65,8 +66,8 @@ class CameraManager:
         if not ret:
             return None
 
-        # 鏡のように自然に見せるため左右反転する
-        frame = cv2.flip(frame, 1)
+        # 呼び出し元で反転/非反転を制御できるように、ここでは生データを返すように変更
+        # ユーザー指摘の「判定逆転」問題を解決するため、AIにはRawデータ、UIにはFlipデータを渡す設計にする
         return frame
 
     def release(self):

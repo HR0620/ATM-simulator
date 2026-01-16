@@ -81,17 +81,26 @@ class AIModel:
             return None
 
         # --- 画像の前処理 ---
-        # 1. モデルの入力サイズ(224x224)にリサイズ
-        image = cv2.resize(frame, (224, 224), interpolation=cv2.INTER_AREA)
+        # 1. BGRからRGBに変換 (Teachable MachineはRGB学習)
+        # OpenCVはBGR、KerasモデルはRGBを期待するため変換必須
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # 2. NumPy配列に変換し、形状を (1, 224, 224, 3) に合わせる
+        # 2. モデルの入力サイズ(224x224)にリサイズ
+        image = cv2.resize(frame_rgb, (224, 224), interpolation=cv2.INTER_AREA)
+
+        # 3. NumPy配列に変換し、形状を (1, 224, 224, 3) に合わせる
         image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
 
-        # 3. 値を -1 から 1 の範囲に正規化 (Teachable Machineの仕様)
+        # 4. 値を -1 から 1 の範囲に正規化 (Teachable Machineの仕様)
         image = (image / 127.5) - 1
 
         # --- 推論実行 ---
         prediction = self.model.predict(image, verbose=0)
+
+        # デバッグ用: 生の確率を表示
+        # print(f"Raw Scores: {prediction[0]}") # プロンプト確認用に出してもよいが、一旦無効化
+        # ユーザーに状況を見せるために標準出力に出す
+        print(f"Debug Pred: {prediction[0]}")
 
         # 最も高いスコアのインデックスを取得
         index = np.argmax(prediction)

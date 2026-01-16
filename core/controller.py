@@ -1,17 +1,23 @@
 import tkinter as tk
 import yaml
 import traceback
+import cv2
+import pygame
+import os
 from vision.camera_manager import CameraManager
 from ai.model_loader import AIModel
-from core.face_checker import FacePositionChecker
+from ui.screens import ATMUI
 from core.gesture_validator import GestureValidator
-from ui.screens import FaceGuideScreen, ATMUI
+from core.state_machine import StateMachine
+from core.states import MenuState, FaceAlignmentState
+from core.account_manager import AccountManager
+from core.input_handler import PinPad
 
 
 class ATMController:
     """
     アプリケーション全体の制御を行うクラス。
-    MVCモデルのControllerに相当し、カメラ・識別ロジック・UIを橋渡しする。
+    State Machineを保持し、メインループを回す。
     """
 
     def __init__(self, root):
@@ -29,8 +35,18 @@ class ATMController:
         self.root.title(self.config["ui"]["title"])
         self.root.geometry(f"{self.config['ui']['window_width']}x{self.config['ui']['window_height']}")
 
+        # キーボード入力バインディング
+        self.root.bind("<Key>", self._on_key_press)
+        # ESCキーで終了
+        self.root.bind("<Escape>", lambda e: self.on_close())
+
         # --- モジュール初期化 ---
         print("モジュールを初期化しています...")
+
+        try:
+            pygame.mixer.init()
+        except Exception as e:
+            print(f"Warning: Audio mixer failed to initialize: {e}")
 
         self.camera = CameraManager(
             device_id=self.config["camera"]["device_id"],
@@ -43,115 +59,146 @@ class ATMController:
             labels_path=self.config["model"]["labels_path"]
         )
 
-        self.face_checker = FacePositionChecker(
-            required_frames=self.config["face_guide"]["required_frames"],
-            guide_box_ratio=self.config["face_guide"]["guide_box_ratio"]
-        )
-
         self.gesture_validator = GestureValidator(
             required_frames=self.config["gesture"]["required_frames"],
             confidence_threshold=self.config["gesture"]["confidence_threshold"],
             free_class=self.config["gesture"]["free_class_name"]
         )
 
-        # --- アプリ状態管理 ---
-        self.current_screen = None
-        self.is_atm_active = False  # TrueならATM操作画面、Falseなら顔認証画面
+        # 新しいモジュール
+        self.account_manager = AccountManager()
+        self.pin_pad = PinPad()
+
+        # 顔位置判定
+        from core.face_checker import FacePositionChecker
+        self.face_checker = FacePositionChecker(required_frames=30)  # 1秒程度 (30FPS想定)
+
+        # UI初期化
+        self.ui = ATMUI(self.root, self.config)
+
+        # コンテキスト（State間で共有するデータ）
+        self.shared_context = {}
+
+        # 入力制御用 (チャタリング防止)
+        self.last_input_time = 0
+        self.input_cooldown = 1.0  # 秒
+
+        # ステートマシン初期化 (初期状態: FaceAlignmentState)
+        self.state_machine = StateMachine(self, FaceAlignmentState)
+
+        # キーイベントバッファ
+        self.last_key_event = None
 
         # アプリ開始
         print("カメラを開始します...")
         self.camera.start()
 
-        # 最初の画面を表示
-        self.show_face_guide()
-
-        # メインループ開始
+        self.state_machine.start()
         self.update_loop()
 
-    def show_face_guide(self):
-        """顔認証ガイド画面に切り替える"""
-        if self.current_screen:
-            self.current_screen.destroy()
+    def _on_key_press(self, event):
+        """キー入力を保存し、次のupdateループで処理する"""
+        if event.keysym != "Escape":  # ESCは別枠
+            self.last_key_event = event
 
-        self.is_atm_active = False
-        self.face_checker.reset()  # カウンタリセット
-        self.current_screen = FaceGuideScreen(self.root, self.config)
-        print("画面切替: 顔認証ガイド")
+    def change_state(self, next_state_cls):
+        """ステートマシンへのプロキシ"""
+        self.state_machine.change_state(next_state_cls)
+        # 状態遷移時もクールダウンを入れる（誤操作防止）
+        self.trigger_cooldown()
 
-    def show_atm_ui(self):
-        """ATM操作画面に切り替える"""
-        if self.current_screen:
-            self.current_screen.destroy()
+    def is_input_allowed(self):
+        """クールダウン中かどうか判定"""
+        import time
+        return (time.time() - self.last_input_time) > self.input_cooldown
 
-        self.is_atm_active = True
-        self.current_screen = ATMUI(self.root, self.config)
-        print("画面切替: ATM操作")
+    def trigger_cooldown(self):
+        """入力を受け付けたのでクールダウンを開始"""
+        import time
+        self.last_input_time = time.time()
+
+    def _play_sound(self, filename):
+        """
+        音声を再生するヘルパーメソッド。
+        Args:
+            filename (str): assets/sounds/ 以下のファイル名 (拡張子なし)
+        """
+        if not pygame.mixer.get_init():
+            return
+
+        # 拡張子の候補 (ユーザーはmp3を持っているためmp3を優先)
+        extensions = [".mp3", ".mp4", ".wav"]
+        target_path = None
+
+        base_path = os.path.join("assets", "sounds", filename)
+
+        for ext in extensions:
+            p = base_path + ext
+            if os.path.exists(p):
+                target_path = p
+                break
+
+        if target_path is None:
+            # print(f"音声ファイルが見つかりません: {base_path}")
+            return
+
+        try:
+            pygame.mixer.music.load(target_path)
+            pygame.mixer.music.play()
+        except Exception as e:
+            print(f"音声再生エラー ({target_path}): {e}")
+
+    # 公開用エイリアス
+    def play_sound(self, filename):
+        self._play_sound(filename)
 
     def update_loop(self):
         """
-        メインの更新ループ。約33ms毎(30fps)に呼び出される。
-        カメラ画像を取得し、現在の状態に応じて処理を分岐する。
+        メインの更新ループ。
         """
         try:
             # 1. カメラ画像取得
-            frame = self.camera.get_frame()
-            if frame is None:
-                # 数フレーム失敗設定ならエラーだが、ここでは単にスキップして再試行
+            raw_frame = self.camera.get_frame()
+            if raw_frame is None:
                 self.root.after(100, self.update_loop)
                 return
 
-            stop_loop_this_turn = False  # 画面遷移時は二重スケジュールを防ぐ
+            # 2. 表示用・座標計算用に左右反転したフレームを作る
+            display_frame = cv2.flip(raw_frame, 1)
 
-            if not self.is_atm_active:
-                # --- 顔認証モード ---
-                # 処理実行
-                status, guide_box, face_rect = self.face_checker.process(frame)
+            # 3. AI予測
+            prediction = self.ai_model.predict(display_frame)
+            gesture = self.gesture_validator.validate(prediction)
 
-                # UI更新
-                if self.current_screen and hasattr(self.current_screen, 'update_image'):
-                    self.current_screen.update_image(frame, status, guide_box, face_rect)
+            # 4. State更新
+            key_event = self.last_key_event
+            self.last_key_event = None  # 消費
 
-                # 認証完了チェック
-                if status == "confirmed":
-                    print("認証完了。ATM画面へ遷移します。")
-                    # 1秒後に遷移（ユーザーに完了画面を見せるため）
-                    self.root.after(1000, self.transition_to_atm)
-                    stop_loop_this_turn = True
+            self.state_machine.update(display_frame, gesture, key_event)
 
-            else:
-                # --- ATM操作モード ---
-                # AI予測実行
-                prediction = self.ai_model.predict(frame)
-                # ジェスチャー安定化フィルタ
-                gesture = self.gesture_validator.validate(prediction)
-
-                # UI更新
-                if self.current_screen and hasattr(self.current_screen, 'update_state'):
-                    self.current_screen.update_state(gesture, frame)
-
-            # 次のフレーム呼び出しを予約
-            if not stop_loop_this_turn:
-                self.root.after(33, self.update_loop)
+            # 5. 次フレーム
+            self.root.after(33, self.update_loop)
 
         except Exception as e:
-            # 万が一ループ内でエラーが起きてもアプリ全体を落とさない
             print(f"メインループ内で予期せぬエラー: {e}")
             traceback.print_exc()
-            # 1秒後に再開を試みる
             self.root.after(1000, self.update_loop)
-
-    def transition_to_atm(self):
-        """遅延実行用のラッパーメソッド"""
-        self.show_atm_ui()
-        # 画面切替後にループが止まらないよう、明示的にループを再開するケースもあるが、
-        # update_loop構造上、画面切り替え時にループ停止フラグを立てていたなら、ここで再開が必要。
-        # 今回の設計では transition 前に stop_loop_this_turn=True にしているので、
-        # ここで新しくループをキックする。
-        self.update_loop()
 
     def on_close(self):
         """アプリ終了時のクリーンアップ"""
         print("アプリを終了します...")
+        try:
+            self._play_sound("come-again")
+        except:
+            pass
+
+        self.root.after(1500, self._finalize_exit)
+
+    def _finalize_exit(self):
+        try:
+            pygame.mixer.quit()
+        except:
+            pass
         self.camera.release()
         self.root.destroy()
         print("終了完了")

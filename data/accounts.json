@@ -1,0 +1,24 @@
+{
+    "accounts": {
+        "1234567890": {
+            "name": "デモタロウ",
+            "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
+            "balance": 1000000
+        },
+        "1462587200": {
+            "name": "harada",
+            "pin_hash": "b85be080814b2d6398697814882d32b10b9ae6d3b0382e421a1ba385243991f0",
+            "balance": 1000
+        },
+        "9659132139": {
+            "name": "harada",
+            "pin_hash": "5cbcdc58b3d4a16e57158a5988d24d221a38f412faf2ae60a4162d13edad09c5",
+            "balance": 1000
+        },
+        "4893597966": {
+            "name": "harada",
+            "pin_hash": "1c753160f146c373c539040c119db2a019d58f51f226f1e009763326e8a7c302",
+            "balance": 9001001
+        }
+    }
+}
