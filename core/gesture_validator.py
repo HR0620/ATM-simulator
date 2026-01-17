@@ -52,7 +52,4 @@ class GestureValidator:
         if self.consecutive_frames >= self.required_frames:
             self.confirmed_gesture = class_name
             return self.confirmed_gesture
-
-        # 確定していなければ、直近の確定状態（おそらくfree）を返すのもありだが、
-        # 操作感としては「確定するまでは反応しない（＝free）」のが安全。
         return self.free_class

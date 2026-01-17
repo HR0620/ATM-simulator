@@ -14,7 +14,6 @@ class FaceAlignmentState(State):
 
     def update(self, frame, gesture, key_event=None):
         # 顔位置判定
-        # controllerにface_checkerがあると仮定
         if hasattr(self.controller, 'face_checker'):
             status, guide_box, face_rect = self.controller.face_checker.process(frame)
 
@@ -366,9 +365,7 @@ class CreateAccountNameInputState(State):
         self.controller.ui.clear_content()
         self.controller.ui.set_header("新規口座作成")
         self.controller.ui.show_message("お名前を入力してください(コンソールで入力)", visible=True)
-        # Tkinter上で日本語入力は面倒なので、仕様の「名前を入力」は
-        # 簡易的にアルファベットキーボード入力か、コンソール入力を想定するか。
-        # ここでは ATMシミュレーターらしくないが、実装簡易化のためキーボード(英語)入力を受け付ける。
+        # 実装簡易化のためキーボード(英語)入力を受け付ける。
         self.name_buffer = ""
         self.controller.ui.show_input_field("", visible=True)
         self.controller.ui.show_selection_guides(right_text="戻る")
