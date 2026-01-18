@@ -1,5 +1,15 @@
-#.venvを無視する
+# Python
+__pycache__/
+
+
+# Virtual Environment
 .venv/
 
-#testsを無視する
-tests/
+# modelディレクトリはアプリ動作に必須のため除外しない
+
+# テストキャッシュ（テストコード自体は除外しない）
+.pytest_cache/
+# mypy
+.mypy_cache/
+
+.vscode/

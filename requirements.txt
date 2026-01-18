@@ -4,5 +4,5 @@ opencv-python==4.9.0.80
 tensorflow==2.15.0
 Pillow==10.2.0
 PyYAML==6.0.1
-keras==2.15.0
 h5py==3.10.0
+pygame==2.5.2

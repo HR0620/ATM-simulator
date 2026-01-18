@@ -70,9 +70,12 @@ class ATMController:
         )
 
         # AIモデル
+        gesture_conf = self.config.get("gesture", {})
         self.ai_model = AIModel(
             model_path=self.config["model"]["path"],
-            labels_path=self.config["model"]["labels_path"]
+            labels_path=self.config["model"]["labels_path"],
+            use_ema=gesture_conf.get("use_ema", False),
+            ema_alpha=gesture_conf.get("ema_alpha", 0.4)
         )
 
         # ジェスチャー検証器
@@ -84,7 +87,8 @@ class ATMController:
         )
 
         # その他モジュール
-        self.account_manager = AccountManager()
+        # その他モジュール
+        self.account_manager = AccountManager(self.config)
         self.pin_pad = PinPad()
 
         from core.face_checker import FacePositionChecker
@@ -190,7 +194,7 @@ class ATMController:
             self.play_sound("come-again")
         except Exception:
             pass
-        self.root.after(1500, self._finalize_exit)
+        self.root.after(5000, self._finalize_exit)
 
     def _finalize_exit(self):
         try:

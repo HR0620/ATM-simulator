@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import tensorflow as tf
 import os
-import sys
 
 
 class AIModel:
@@ -10,13 +9,15 @@ class AIModel:
     Teachable MachineのKerasモデルを読み込み、推論を行うクラス。
     """
 
-    def __init__(self, model_path, labels_path):
+    def __init__(self, model_path, labels_path, use_ema=False, ema_alpha=0.4):
         """
         初期化メソッド
 
         Args:
-            model_path (str): .h5ファイルのパス（相対パス可）
-            labels_path (str): labels.txtのパス（相対パス可）
+            model_path (str): .h5ファイルのパス
+            labels_path (str): labels.txtのパス
+            use_ema (bool): 指数移動平均(EMA)による平滑化を行うか
+            ema_alpha (float): EMAの平滑化係数 (0 < alpha <= 1)
         """
         # 実行ディレクトリに依存しないよう、絶対パスに変換して解決する
         project_root = os.getcwd()
@@ -25,6 +26,11 @@ class AIModel:
 
         self.model = None
         self.labels = []
+
+        # EMA用状態
+        self.use_ema = use_ema
+        self.ema_alpha = ema_alpha
+        self._ema_scores = None
 
         # 初期化時にロードを試みる
         self.load_model()
@@ -82,7 +88,6 @@ class AIModel:
 
         # --- 画像の前処理 ---
         # 1. BGRからRGBに変換 (Teachable MachineはRGB学習)
-        # OpenCVはBGR、KerasモデルはRGBを期待するため変換必須
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # 2. モデルの入力サイズ(224x224)にリサイズ
@@ -96,21 +101,33 @@ class AIModel:
 
         # --- 推論実行 ---
         prediction = self.model.predict(image, verbose=0)
+        current_scores = prediction[0]
 
-        # デバッグ用: 生の確率を表示
-        # print(f"Raw Scores: {prediction[0]}") # プロンプト確認用に出してもよいが、一旦無効化
-        # ユーザーに状況を見せるために標準出力に出す
-        print(f"Debug Pred: {prediction[0]}")
+        # --- EMA (指数移動平均) フィルタ ---
+        if self.use_ema:
+            if self._ema_scores is None:
+                self._ema_scores = current_scores
+            else:
+                self._ema_scores = (self.ema_alpha * current_scores) + \
+                                   ((1 - self.ema_alpha) * self._ema_scores)
+
+            # 判定には平滑化されたスコアを使用
+            scores_to_use = self._ema_scores
+        else:
+            scores_to_use = current_scores
+
+        # デバッグ用標準出力は削除 (ロギングが必要ならloggingモジュールを使用すべき)
+        # logging.debug(f"Pred: {scores_to_use}")
 
         # 最も高いスコアのインデックスを取得
-        index = np.argmax(prediction)
+        index = np.argmax(scores_to_use)
 
         # クラス名と確信度を取得
         class_name = self.labels[index] if index < len(self.labels) else str(index)
-        confidence = prediction[0][index]
+        confidence = scores_to_use[index]
 
         return {
             "class_name": class_name,
             "confidence": float(confidence),
-            "all_scores": prediction[0].tolist()
+            "all_scores": scores_to_use.tolist()
         }

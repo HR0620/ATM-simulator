@@ -73,6 +73,7 @@ class BaseInputState(State):
                 self.controller.play_sound("push-enter")
         elif key_event.keysym == "BackSpace":
             self.input_buffer.backspace()
+            self.controller.play_sound("push-enter")
         elif key_event.keysym == "Return":
             value = self.input_buffer.get_value()
             if len(value) >= 1:
@@ -190,13 +191,11 @@ class ResultState(State):
     """結果/エラー画面"""
 
     def on_enter(self, prev_state=None):
-        is_error = self.controller.shared_context.get("is_error", False)
         is_account_created = self.controller.shared_context.get(
             "is_account_created", False
         )
 
-        if not is_error:
-            self.controller.play_sound("come-again")
+        self.controller.play_sound("come-again")
 
         self.countdown = 10 if is_account_created else 3
         self._start_countdown()
@@ -259,6 +258,10 @@ class GenericAmountInputState(BaseInputState):
     MESSAGE = "金額を入力してください"
     UNIT = "円"
 
+    def on_enter(self, prev_state=None):
+        super().on_enter(prev_state)
+        self.controller.play_sound("pay-money")
+
     def _on_input_complete(self, value):
         if len(value) >= 1:
             amt = int(value)
@@ -270,8 +273,13 @@ class ConfirmationState(State):
     """確認画面"""
 
     def on_enter(self, prev_state=None):
-        # 金額確認音
-        self.controller.play_sound("check-money")
+        txn = self.controller.shared_context.get("transaction")
+        # 金額確認音または保存確認音
+        if txn == "create_account":
+            self.controller.play_sound("save-data_q")
+        else:
+            self.controller.play_sound("check-money")
+
         self.controller.ui.set_click_callback(self._on_click)
 
     def on_exit(self):
@@ -433,6 +441,7 @@ class PinInputState(State):
                 self.controller.play_sound("push-enter")
         elif key_event.keysym == "BackSpace":
             self.input_buffer.backspace()
+            self.controller.play_sound("push-enter")
         elif key_event.keysym == "Return":
             if len(self.input_buffer.get_value()) == 4:
                 self.controller.play_sound("push-enter")
@@ -512,8 +521,10 @@ class CreateAccountNameInputState(State):
         char = key_event.char
         if len(char) == 1 and char.isprintable():
             self.name_buffer += char
+            self.controller.play_sound("push-enter")
         elif key_event.keysym == "BackSpace":
             self.name_buffer = self.name_buffer[:-1]
+            self.controller.play_sound("push-enter")
         elif key_event.keysym == "Return":
             if len(self.name_buffer) > 0:
                 self.controller.play_sound("push-enter")

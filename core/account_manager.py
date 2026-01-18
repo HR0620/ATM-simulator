@@ -10,14 +10,24 @@ class AccountManager:
     """
     DATA_FILE = "data/accounts.json"
 
-    def __init__(self):
+    def __init__(self, config=None):
         self.accounts = {}
+        # 安全のためデフォルトソルトを設定（configがない場合）
+        self.salt = "default_salt"
+        self.max_amount = 999999
+
+        if config and "security" in config:
+            self.salt = config["security"].get("pin_salt", "default_salt")
+            self.max_amount = config["security"].get("max_amount", 999999)
+
         self.load_data()
 
     def load_data(self):
         """JSONファイルから口座データを読み込む"""
         if not os.path.exists(self.DATA_FILE):
             # ファイルがない場合は初期データを作成（デモ用）
+            # 注意: デモデータのPINもハッシュ化する必要があるため、
+            # _hash_pinメソッドはソルト初期化後に呼ぶ必要がある
             self.accounts = {
                 "123456": {
                     "name": "デモタロウ",
@@ -39,13 +49,20 @@ class AccountManager:
         """現在の口座データをJSONファイルに書き込む"""
         try:
             with open(self.DATA_FILE, "w", encoding="utf-8") as f:
-                json.dump({"accounts": self.accounts}, f, indent=4, ensure_ascii=False)
+                json.dump(
+                    {"accounts": self.accounts},
+                    f,
+                    indent=4,
+                    ensure_ascii=False
+                )
         except Exception as e:
             print(f"データ保存エラー: {e}")
 
     def _hash_pin(self, pin):
-        """PINコードをハッシュ化する（簡易的なセキュリティ）"""
-        return hashlib.sha256(pin.encode()).hexdigest()
+        """PINコードをハッシュ化する（ソルト付きSHA256）"""
+        # ソルト + PIN を結合してハッシュ化
+        salted_pin = f"{self.salt}{pin}"
+        return hashlib.sha256(salted_pin.encode()).hexdigest()
 
     def verify_pin(self, account_number, pin):
         """
@@ -75,12 +92,16 @@ class AccountManager:
         新規口座を作成する
         Returns: 作成された口座番号 (str)
         """
-        # 6桁のランダムな口座番号を生成（既存との重複チェック付き）
         import random
-        while True:
+        # 6桁のランダムな口座番号を生成（既存との重複チェック付き）
+        # 無限ループ防止のため最大試行回数を設定
+        for _ in range(1000):
             account_number = str(random.randint(100000, 999999))
             if account_number not in self.accounts:
                 break
+        else:
+            # 1000回試しても重複する場合（ほぼあり得ないが）
+            raise Exception("口座番号の生成に失敗しました")
 
         self.accounts[account_number] = {
             "name": name,
@@ -95,6 +116,12 @@ class AccountManager:
         引き出し処理
         Returns: (success: bool, message: str)
         """
+        if amount > self.max_amount:
+            return False, f"取引上限額({self.max_amount}円)を超えています"
+
+        if amount <= 0:
+            return False, "金額が不正です"
+
         if account_number not in self.accounts:
             return False, "口座が存在しません"
 
@@ -111,10 +138,13 @@ class AccountManager:
         預け入れ（振込受け取り）処理
         Returns: (success: bool, message: str)
         """
+        if amount > self.max_amount:
+            return False, f"取引上限額({self.max_amount}円)を超えています"
+
+        if amount <= 0:
+            return False, "金額が不正です"
+
         if account_number not in self.accounts:
-            # 振込先が存在しない場合でも、シミュレーターとしては
-            # エラーにするか、架空の口座として許可するか。
-            # 今回は厳密にチェックする。
             return False, "振込先口座が存在しません"
 
         self.accounts[account_number]["balance"] += amount

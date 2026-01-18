@@ -49,8 +49,12 @@ class ATMUI:
 
     def _calculate_layout(self):
         """現在のウィンドウサイズに基づいてレイアウトを計算"""
+        # デバッグモード判定
+        is_debug = self.config.get("ui", {}).get("debug_mode", True)
+        self.panel_width = Layout.DEBUG_PANEL_WIDTH if is_debug else 0
+
         # メインエリアとデバッグパネル
-        self.main_width = self.width - Layout.DEBUG_PANEL_WIDTH
+        self.main_width = self.width - self.panel_width
         self.main_height = self.height
 
         # ボタン領域
@@ -132,8 +136,9 @@ class ATMUI:
         # 1. カメラ映像をメインエリアに描画
         self._draw_camera_background(frame)
 
-        # 2. デバッグパネル (右側)
-        self._draw_debug_panel()
+        # 2. デバッグパネル (右側) - 表示モードのみ
+        if self.panel_width > 0:
+            self._draw_debug_panel()
 
         # 3. ヘッダー
         header = self._state_data.get("header", "")
@@ -604,6 +609,7 @@ class ATMUI:
     def _draw_result_overlay(self):
         """結果画面"""
         message = self._state_data.get("message", "")
+        # データがない場合はFalse
         is_error = self._state_data.get("is_error", False)
         countdown = self._state_data.get("countdown", 0)
 
@@ -611,20 +617,23 @@ class ATMUI:
         cy = self.height // 2
         bg = "#cc0000" if is_error else "#004080"
 
+        # ボックスサイズを拡大（メッセージが長いため）
         self.canvas.create_rectangle(
-            cx - 280, cy - 90, cx + 280, cy + 90,
+            cx - 280, cy - 120, cx + 280, cy + 120,
             fill=bg, stipple="gray50",
             outline="#ffffff", width=3, tags="overlay"
         )
+        # メッセージ位置を少し上に
         self.canvas.create_text(
-            cx, cy, text=message, fill="white",
+            cx, cy - 20, text=message, fill="white",
             font=("Meiryo UI", 18, "bold"), tags="overlay"
         )
 
         if countdown > 0:
+            # カウントダウンをボックスの下方に配置
             self.canvas.create_text(
-                cx, cy + 70, text=f"メニューへ戻る: {countdown}秒",
-                fill="white", font=("Meiryo UI", 14), tags="overlay"
+                cx, cy + 140, text=f"メニューへ戻る: {countdown}秒",
+                fill="white", font=("Meiryo UI", 16, "bold"), tags="overlay"
             )
 
     def _draw_face_align_overlay(self):
