@@ -4,6 +4,11 @@
             "name": "デモタロウ",
             "pin_hash": "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4",
             "balance": 1000000
+        },
+        "279019": {
+            "name": "harada",
+            "pin_hash": "42ca884419188c4b680d2970c8bbb7bdbef76e843f4bc6eb372d3c43efa03010",
+            "balance": 1112111
         }
     }
 }

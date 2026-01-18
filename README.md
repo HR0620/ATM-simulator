@@ -59,23 +59,23 @@ python main.py
 
 ### 1. 待機画面・顔認証
 ユーザーがカメラの前に立つと自動的に顔を検出します。
-![顔検出](doc/images/screenshot_face_align.png)
+![顔検出](doc/images/face_align.png)
 
 ### 2. メインメニュー
 ジェスチャー操作で「振込」「引き出し」「口座作成」を選択します。
-![メインメニュー](doc/images/screenshot_menu.png)
+![メインメニュー](doc/images/menu.png)
 
-### 3. 金額入力
+### 3. 暗証番号入力
 キーボードを使用して金額を入力します。
-![金額入力](doc/images/screenshot_amount.png)
+![暗証番号入力](doc/images/pin.png)
 
 ### 4. 確認画面
 取引内容を確認し、ジェスチャーで確定します。
-![確認画面](doc/images/screenshot_confirm.png)
+![確認画面](doc/images/confirm.png)
 
 ### 5. 取引完了
 処理結果が表示され、音声ガイダンスと共に終了します。
-![完了画面](doc/images/screenshot_result.png)
+![完了画面](doc/images/result.png)
 
 ## ディレクトリ構成
 ```
