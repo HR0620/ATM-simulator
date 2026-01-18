@@ -14,13 +14,17 @@ class State:
         """状態から出る時の処理"""
         pass
 
-    def update(self, frame, gesture, key_event=None):
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
         """
         フレームごとの更新処理
         Args:
             frame: カメラ映像（反転済み）
-            gesture: 認識されたジェスチャー ("left", "center", "right", "free")
+            gesture: 確定したジェスチャー (None or "left", "center", "right")
             key_event: キーボード入力イベント (あれば)
+            progress: ジェスチャー認識進捗 (0.0〜1.0)
+            current_direction: 現在認識中の方向
+            debug_info: デバッグ情報 (AI予測など)
         """
         pass
 
@@ -55,7 +59,10 @@ class StateMachine:
         print(f"State Transition: {prev_state.__class__.__name__} -> {self.current_state_name}")
         self.current_state.on_enter(prev_state=prev_state)
 
-    def update(self, frame, gesture, key_event=None):
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
         """現在の状態のupdateメソッドを呼ぶ"""
         if self.current_state:
-            self.current_state.update(frame, gesture, key_event)
+            self.current_state.update(
+                frame, gesture, key_event, progress, current_direction, debug_info
+            )

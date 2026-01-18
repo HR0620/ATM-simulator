@@ -19,7 +19,7 @@ class AccountManager:
         if not os.path.exists(self.DATA_FILE):
             # ファイルがない場合は初期データを作成（デモ用）
             self.accounts = {
-                "1234567890": {
+                "123456": {
                     "name": "デモタロウ",
                     "pin_hash": self._hash_pin("1234"),
                     "balance": 1000000
@@ -75,10 +75,10 @@ class AccountManager:
         新規口座を作成する
         Returns: 作成された口座番号 (str)
         """
-        # 簡易的にランダムな10桁の数字を生成（既存との重複チェック付き）
+        # 6桁のランダムな口座番号を生成（既存との重複チェック付き）
         import random
         while True:
-            account_number = str(random.randint(1000000000, 9999999999))
+            account_number = str(random.randint(100000, 999999))
             if account_number not in self.accounts:
                 break
 

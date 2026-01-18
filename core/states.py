@@ -1,393 +1,522 @@
+"""
+ATM States モジュール (リファクタリング版)
+
+設計意図:
+- 各StateはUI描画データを構築しrender_frameに渡す
+- 共通パターンを基底クラスに抽出
+- 音声再生を適切なタイミングで実行
+- アイドル検知機能を追加
+"""
 from core.state_machine import State
 from core.input_handler import NumericInputBuffer
 
 
-class FaceAlignmentState(State):
-    """
-    起動時、顔が枠内に収まっているか確認するステート
-    """
+# =============================================================================
+# 基底クラス
+# =============================================================================
+
+class BaseInputState(State):
+    """入力系Stateの共通基底クラス"""
+
+    # サブクラスでオーバーライド
+    INPUT_MAX = 6
+    ALIGN_RIGHT = False
+    HEADER = ""
+    MESSAGE = ""
+    UNIT = ""
 
     def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("本人確認")
-        # ガイドなどは update_background で描画される
+        self.input_buffer = NumericInputBuffer(
+            max_length=self.INPUT_MAX,
+            is_pin=False
+        )
+        self.controller.ui.set_click_callback(self._on_click)
 
-    def update(self, frame, gesture, key_event=None):
-        # 顔位置判定
-        if hasattr(self.controller, 'face_checker'):
-            status, guide_box, face_rect = self.controller.face_checker.process(frame)
+    def on_exit(self):
+        self.controller.ui.set_click_callback(None)
 
-            # UI更新 (Guide overlay)
-            self.controller.ui.update_background(frame, face_result=(status, guide_box, face_rect))
-
-            if status == "confirmed":
-                self.controller.play_sound("open-window")  # 成功音
-                self.controller.trigger_cooldown()
-                self.controller.change_state(MenuState)
-
-        else:
-            # face_checkerがない場合（テスト時など）はスキップ
-            self.controller.ui.update_background(frame)
+    def _on_click(self, zone):
+        if zone == "right":
             self.controller.change_state(MenuState)
+
+    def _on_input_complete(self, value):
+        """入力完了時の処理 - サブクラスでオーバーライド"""
+        pass
+
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        self.controller.ui.render_frame(frame, {
+            "mode": "input",
+            "header": self.HEADER,
+            "message": self.MESSAGE,
+            "input_value": self.input_buffer.get_display_value(),
+            "input_max": self.INPUT_MAX,
+            "input_unit": self.UNIT,
+            "align_right": self.ALIGN_RIGHT,
+            "guides": {"right": "戻る"},
+            "progress": progress,
+            "current_direction": current_direction,
+            "debug_info": debug_info,
+        })
+
+        if gesture == "right":
+            self.controller.change_state(MenuState)
+            return
+
+        if key_event:
+            self._handle_key(key_event)
+
+    def _handle_key(self, key_event):
+        char = key_event.char
+        if char.isdigit():
+            if self.input_buffer.add_char(char):
+                self.controller.play_sound("push-enter")
+        elif key_event.keysym == "BackSpace":
+            self.input_buffer.backspace()
+        elif key_event.keysym == "Return":
+            value = self.input_buffer.get_value()
+            if len(value) >= 1:
+                self.controller.play_sound("push-enter")
+                self._on_input_complete(value)
+
+
+# =============================================================================
+# メイン画面
+# =============================================================================
+
+class FaceAlignmentState(State):
+    """起動時、顔が枠内に収まっているか確認"""
+
+    def on_enter(self, prev_state=None):
+        # 起動音はここでは再生しない（顔認証完了時に再生）
+        pass
 
     def on_exit(self):
         pass
 
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        if hasattr(self.controller, 'face_checker'):
+            result = self.controller.face_checker.process(frame)
+            status, guide_box, face_rect = result
+
+            self.controller.ui.render_frame(frame, {
+                "mode": "face_align",
+                "header": "本人確認",
+                "face_result": (status, guide_box, face_rect),
+                "debug_info": debug_info,
+            })
+
+            if status == "confirmed":
+                # 起動音 → いらっしゃいませの前
+                self.controller.play_sound("open-window")
+                self.controller.change_state(MenuState)
+        else:
+            self.controller.change_state(MenuState)
+
 
 class MenuState(State):
-    """
-    メインメニュー状態
-    左：振込、中：引出、右：口座作成
-    """
+    """メインメニュー"""
+
+    IDLE_TIMEOUT_SEC = 10  # アイドル検知時間
 
     def on_enter(self, prev_state=None):
-        # 専用のメインメニューレイアウトを表示
-        self.controller.ui.show_main_menu()
-
-        # 音声再生
         self.controller.play_sound("irassyaimase")
-        # コンテキストクリア
         self.controller.shared_context = {}
+        self.controller.ui.set_click_callback(self._on_click)
 
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
+        # アイドルタイマー開始
+        self._idle_timer_id = None
+        self._start_idle_timer()
 
-        if gesture == "left":
-            # 振込フローへ (認証なし、単純な入金扱い)
+    def on_exit(self):
+        self.controller.ui.set_click_callback(None)
+        self._cancel_idle_timer()
+
+    def _start_idle_timer(self):
+        self._cancel_idle_timer()
+        self._idle_timer_id = self.controller.root.after(
+            self.IDLE_TIMEOUT_SEC * 1000,
+            self._on_idle
+        )
+
+    def _cancel_idle_timer(self):
+        if self._idle_timer_id:
+            self.controller.root.after_cancel(self._idle_timer_id)
+            self._idle_timer_id = None
+
+    def _on_idle(self):
+        """アイドル状態になったら音声再生"""
+        self.controller.play_sound("touch-button")
+        # 再度タイマー開始
+        self._start_idle_timer()
+
+    def _on_click(self, zone):
+        self._start_idle_timer()  # 操作があったらリセット
+        self._handle_selection(zone)
+
+    def _handle_selection(self, zone):
+        if zone == "left":
             self.controller.shared_context = {"transaction": "transfer"}
             self.controller.change_state(TransferTargetInputState)
-
-        elif gesture == "center":
-            # 引き出しフローへ
+        elif zone == "center":
             self.controller.shared_context = {"transaction": "withdraw"}
             self.controller.change_state(WithdrawAccountInputState)
-
-        elif gesture == "right":
-            # 口座作成フローへ
+        elif zone == "right":
             self.controller.shared_context = {"transaction": "create_account"}
             self.controller.change_state(CreateAccountNameInputState)
 
-# --- 共通部品: 完了画面 ---
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        self.controller.ui.render_frame(frame, {
+            "mode": "menu",
+            "header": "メインメニュー",
+            "buttons": [
+                {"zone": "left", "label": "振込"},
+                {"zone": "center", "label": "引き出し"},
+                {"zone": "right", "label": "口座作成"},
+            ],
+            "progress": progress,
+            "current_direction": current_direction,
+            "debug_info": debug_info,
+        })
+
+        if gesture:
+            self._start_idle_timer()  # 操作があったらリセット
+            self._handle_selection(gesture)
 
 
 class ResultState(State):
+    """結果/エラー画面"""
+
     def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()  # 前の画面を消去
-        self.controller.ui.set_header("手続き完了")
-        msg = "お手続きが完了しました。"
-        if "result_message" in self.controller.shared_context:
-            msg += "\n" + self.controller.shared_context["result_message"]
+        is_error = self.controller.shared_context.get("is_error", False)
+        is_account_created = self.controller.shared_context.get(
+            "is_account_created", False
+        )
 
-        self.controller.ui.show_message(msg, visible=True)
-        self.controller.ui.show_selection_guides(left_text=None, right_text=None)
+        if not is_error:
+            self.controller.play_sound("come-again")
 
-        self.controller.play_sound("come-again")
+        self.countdown = 10 if is_account_created else 3
+        self._start_countdown()
 
-        # 3.5秒後にメニューへ
-        self.controller.root.after(3500, lambda: self.controller.change_state(MenuState))
+    def on_exit(self):
+        pass
 
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
-        # 入力無視
-
-# --- 振込フロー (Account -> Amount -> Check -> Done) ---
-# ※ 左ボタン仕様: "振込先口座番号(10桁)を入力" -> "金額を入力" -> ...
-# 認証がないため、NumericInputState をつなげて実装する
-
-
-class TransferTargetInputState(State):
-    def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("振込先指定")
-        self.controller.ui.show_message("振込先の口座番号を入力してください(キーボード)", visible=True)
-        self.input_buffer = NumericInputBuffer(max_length=10, is_pin=False)
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value(), visible=True)
-        self.controller.ui.show_selection_guides(right_text="戻る")  # 右手＝キャンセル的に使う
-
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
-
-        if gesture == "right":
+    def _start_countdown(self):
+        if self.countdown > 0:
+            self.controller.root.after(1000, self._tick)
+        else:
             self.controller.change_state(MenuState)
-            return
 
-        if key_event:
-            char = key_event.char
-            if char.isdigit():
-                if len(self.input_buffer.get_value()) < 7:
-                    if self.input_buffer.add_char(char):
-                        self.controller.play_sound("pushenter")
-            elif key_event.keysym == "BackSpace":
-                self.input_buffer.backspace()
-                self.controller.play_sound("pushenter")
-            elif key_event.keysym == "Return":
-                # エンターキーで確定
-                if len(self.input_buffer.get_value()) > 0:
-                    self.controller.shared_context["target_account"] = self.input_buffer.get_value()
-                    self.controller.play_sound("pushenter")
-                    self.controller.trigger_cooldown()
-                    self.controller.change_state(GenericAmountInputState)
-
-        self.controller.ui.show_fixed_input_field(self.input_buffer.get_display_value(), max_digits=7)
-
-
-class GenericAmountInputState(State):
-    """汎用金額入力画面"""
-
-    def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("金額入力")
-        self.controller.ui.show_message("金額を入力してください(キーボード)", visible=True)
-        self.input_buffer = NumericInputBuffer(max_length=8, is_pin=False)  # 1億円未満
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value() + " 円", visible=True)
-        self.controller.ui.show_selection_guides(right_text="戻る")
-
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
-
-        if gesture == "right":
-            # 戻るロジック（簡易的にメニューへ）
+    def _tick(self):
+        self.countdown -= 1
+        if self.countdown <= 0:
             self.controller.change_state(MenuState)
-            return
+        else:
+            self.controller.root.after(1000, self._tick)
 
-        if key_event:
-            char = key_event.char
-            if char.isdigit():
-                if self.input_buffer.add_char(char):
-                    self.controller.play_sound("pushenter")
-            elif key_event.keysym == "BackSpace":
-                self.input_buffer.backspace()
-                self.controller.play_sound("pushenter")
-            elif key_event.keysym == "Return":
-                if len(self.input_buffer.get_value()) > 0:
-                    self.controller.shared_context["amount"] = int(self.input_buffer.get_value())
-                    self.controller.play_sound("pushenter")
-                    self.controller.change_state(ConfirmationState)
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        msg = self.controller.shared_context.get(
+            "result_message", "処理が完了しました。"
+        )
+        is_error = self.controller.shared_context.get("is_error", False)
 
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value() + " 円", visible=True)
+        self.controller.ui.render_frame(frame, {
+            "mode": "result",
+            "header": "エラー" if is_error else "手続き完了",
+            "message": msg,
+            "is_error": is_error,
+            "countdown": self.countdown,
+            "debug_info": debug_info,
+        })
+
+
+# =============================================================================
+# 振込フロー
+# =============================================================================
+
+class TransferTargetInputState(BaseInputState):
+    """振込先口座番号入力"""
+    INPUT_MAX = 6
+    ALIGN_RIGHT = False
+    HEADER = "振込先指定"
+    MESSAGE = "振込先の口座番号 (6桁)"
+
+    def _on_input_complete(self, value):
+        if len(value) == 6:
+            self.controller.shared_context["target_account"] = value
+            self.controller.change_state(GenericAmountInputState)
+
+
+class GenericAmountInputState(BaseInputState):
+    """金額入力"""
+    INPUT_MAX = 7
+    ALIGN_RIGHT = True
+    HEADER = "金額入力"
+    MESSAGE = "金額を入力してください"
+    UNIT = "円"
+
+    def _on_input_complete(self, value):
+        if len(value) >= 1:
+            amt = int(value)
+            self.controller.shared_context["amount"] = amt
+            self.controller.change_state(ConfirmationState)
 
 
 class ConfirmationState(State):
-    """汎用確認画面"""
+    """確認画面"""
 
     def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("確認")
-
-        # コンテキストに応じてメッセージを変える
-        txn = self.controller.shared_context.get("transaction")
-        msg = ""
-        if txn == "transfer":
-            target = self.controller.shared_context.get("target_account")
-            amt = self.controller.shared_context.get("amount")
-            msg = f"口座番号: {target}\n振込金額: {amt}円\n\nよろしいですか？"
-        elif txn == "withdraw":
-            amt = self.controller.shared_context.get("amount")
-            msg = f"引出金額: {amt}円\n\nよろしいですか？"
-        elif txn == "create_account":
-            name = self.controller.shared_context.get("name")
-            msg = f"お名前: {name}\n\nこの内容で作成しますか？"
-
-        self.controller.ui.show_message(msg, visible=True)
-        self.controller.ui.show_input_field("", visible=False)
-        self.controller.ui.show_keypad([], visible=False)
-        self.controller.ui.show_selection_guides(left_text="はい", right_text="いいえ")
-
+        # 金額確認音
         self.controller.play_sound("check-money")
+        self.controller.ui.set_click_callback(self._on_click)
 
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
+    def on_exit(self):
+        self.controller.ui.set_click_callback(None)
 
-        if gesture == "left":  # はい
+    def _on_click(self, zone):
+        if zone == "left":
             self._execute_transaction()
-
-        elif gesture == "right":  # いいえ
-            # ひとつ戻る（簡易実装としてメニューに戻す）
+        elif zone == "right":
             self.controller.change_state(MenuState)
+
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        txn = self.controller.shared_context.get("transaction")
+        msg = self._build_message(txn)
+
+        self.controller.ui.render_frame(frame, {
+            "mode": "confirm",
+            "header": "確認",
+            "message": msg,
+            "progress": progress,
+            "current_direction": current_direction,
+            "guides": {"left": "はい", "right": "いいえ"},
+            "debug_info": debug_info,
+        })
+
+        if gesture == "left":
+            self._execute_transaction()
+        elif gesture == "right":
+            self.controller.change_state(MenuState)
+
+    def _build_message(self, txn):
+        ctx = self.controller.shared_context
+        if txn == "transfer":
+            target = ctx.get("target_account")
+            amt = ctx.get("amount")
+            return f"口座番号: {target}\n振込金額: {amt}円\n\nよろしいですか？"
+        elif txn == "withdraw":
+            amt = ctx.get("amount")
+            return f"引出金額: {amt}円\n\nよろしいですか？"
+        elif txn == "create_account":
+            name = ctx.get("name")
+            return f"お名前: {name}\n\nこの内容で作成しますか？"
+        return ""
 
     def _execute_transaction(self):
         txn = self.controller.shared_context.get("transaction")
         am = self.controller.account_manager
+        ctx = self.controller.shared_context
 
-        success = True
         msg = ""
+        is_error = False
+        is_account_created = False
 
         if txn == "transfer":
-            target = self.controller.shared_context.get("target_account")
-            amt = self.controller.shared_context.get("amount")
+            target = ctx.get("target_account")
+            amt = ctx.get("amount")
             success, msg = am.deposit(target, amt)
+            is_error = not success
 
         elif txn == "withdraw":
-            acct = self.controller.shared_context.get("account_number")
-            amt = self.controller.shared_context.get("amount")
-            success, msg = am.withdraw(acct, amt)
+            acct = ctx.get("account_number")
+            pin = ctx.get("pin")
+            if not am.verify_pin(acct, pin):
+                msg = "口座番号または暗証番号が\n間違っています。"
+                is_error = True
+            else:
+                amt = ctx.get("amount")
+                success, msg = am.withdraw(acct, amt)
+                is_error = not success
 
         elif txn == "create_account":
-            name = self.controller.shared_context.get("name")
-            pin = self.controller.shared_context.get("pin")
-            # 新規作成は残高1000円あげるサービス
+            name = ctx.get("name")
+            pin = ctx.get("pin")
             new_acct = am.create_account(name, pin, initial_balance=1000)
-            msg = f"口座を作成しました。\n口座番号: {new_acct}"
+            msg = f"口座を作成しました。\n\n" \
+                  f"口座番号: {new_acct}\n\nメモしてください！"
+            is_account_created = True
 
-        self.controller.shared_context["result_message"] = msg
+        ctx["result_message"] = msg
+        ctx["is_error"] = is_error
+        ctx["is_account_created"] = is_account_created
         self.controller.change_state(ResultState)
 
 
-# --- 引き出しフロー (Acct -> PIN -> Amount -> Check -> Done) ---
-class WithdrawAccountInputState(State):
-    def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("お引き出し")
-        self.controller.ui.show_message("ご自身の口座番号を入力してください(キーボード)", visible=True)
-        self.input_buffer = NumericInputBuffer(max_length=10)
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value(), visible=True)
-        self.controller.ui.show_selection_guides(right_text="戻る")
+# =============================================================================
+# 引き出しフロー
+# =============================================================================
 
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
-        if gesture == "right":
-            self.controller.change_state(MenuState)
-            return
+class WithdrawAccountInputState(BaseInputState):
+    """口座番号入力"""
+    INPUT_MAX = 6
+    ALIGN_RIGHT = False
+    HEADER = "お引き出し"
+    MESSAGE = "口座番号を入力 (6桁)"
 
-        if key_event:
-            # 共通のキー入力ロジック本当はInputHandlerに持たせたいがここで
-            char = key_event.char
-            if char.isdigit():
-                if self.input_buffer.add_char(char):
-                    self.controller.play_sound("pushenter")
-            elif key_event.keysym == "BackSpace":
-                self.input_buffer.backspace()
-                self.controller.play_sound("pushenter")
-            elif key_event.keysym == "Return":
-                if len(self.input_buffer.get_value()) > 0:
-                    self.controller.shared_context["account_number"] = self.input_buffer.get_value()
-                    self.controller.play_sound("pushenter")
-                    # 次はPIN入力
-                    self.controller.change_state(PinInputState)
-
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value(), visible=True)
+    def _on_input_complete(self, value):
+        if len(value) == 6:
+            self.controller.shared_context["account_number"] = value
+            self.controller.change_state(PinInputState)
 
 
 class PinInputState(State):
-    """
-    ランダム配置キーパッドによるPIN入力
-    withdraw または create_account の一部として機能する
-    """
+    """暗証番号入力"""
 
     def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("暗証番号入力")
-        self.controller.ui.show_message("キーボード(tyughjvbnm)で入力してください", visible=True)
-
-        # ピンパッドのリセット
         self.controller.pin_pad.reset_random_mapping()
-        self.controller.ui.show_keypad(self.controller.pin_pad.get_layout_info(), visible=True)
-
         self.input_buffer = NumericInputBuffer(max_length=4, is_pin=True)
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value(), visible=True)
-        self.controller.ui.show_selection_guides(right_text="戻る")
+        self.controller.ui.set_click_callback(self._on_click)
+        self._message = self._get_message()
 
     def on_exit(self):
-        self.controller.ui.show_keypad([], visible=False)
+        self.controller.ui.set_click_callback(None)
 
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
+    def _get_message(self):
+        txn = self.controller.shared_context.get("transaction")
+        step = self.controller.shared_context.get("pin_step", 1)
+
+        if txn == "create_account":
+            if step == 1:
+                return "暗証番号を入力 (初回)"
+            else:
+                return "確認のためもう一度入力 (2回目)"
+        return "暗証番号を入力してください"
+
+    def _on_click(self, zone):
+        if zone == "right":
+            self.controller.change_state(MenuState)
+
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        keypad = self.controller.pin_pad.get_layout_info()
+
+        self.controller.ui.render_frame(frame, {
+            "mode": "pin_input",
+            "header": "暗証番号入力",
+            "message": self._message,
+            "input_value": self.input_buffer.get_display_value(),
+            "keypad_layout": keypad,
+            "guides": {"right": "戻る"},
+            "progress": progress,
+            "current_direction": current_direction,
+            "debug_info": debug_info,
+        })
+
         if gesture == "right":
             self.controller.change_state(MenuState)
             return
 
         if key_event:
-            # key_event.char が 't', 'y', ... に対応
-            char = key_event.char.lower()
+            self._handle_key(key_event)
 
-            # ランダムマップから数字を取得
-            num = self.controller.pin_pad.get_number(char)
-            if num is not None:
-                if self.input_buffer.add_char(num):
-                    self.controller.play_sound("pushenter")
-            elif key_event.keysym == "BackSpace":
-                self.input_buffer.backspace()
-                self.controller.play_sound("pushenter")
-            elif key_event.keysym == "Return":
-                # 4桁入力完了
-                if len(self.input_buffer.get_value()) == 4:
-                    self._on_pin_entered(self.input_buffer.get_value())
+    def _handle_key(self, key_event):
+        char = key_event.char.lower()
+        num = self.controller.pin_pad.get_number(char)
 
-        self.controller.ui.show_input_field(self.input_buffer.get_display_value(), visible=True)
+        if num is not None:
+            if self.input_buffer.add_char(num):
+                self.controller.play_sound("push-enter")
+        elif key_event.keysym == "BackSpace":
+            self.input_buffer.backspace()
+        elif key_event.keysym == "Return":
+            if len(self.input_buffer.get_value()) == 4:
+                self.controller.play_sound("push-enter")
+                self._on_pin_entered(self.input_buffer.get_value())
 
     def _on_pin_entered(self, pin):
         txn = self.controller.shared_context.get("transaction")
+        ctx = self.controller.shared_context
 
         if txn == "withdraw":
-            # 認証
-            acct = self.controller.shared_context.get("account_number")
-            am = self.controller.account_manager
-            if am.verify_pin(acct, pin):
-                self.controller.play_sound("pushenter")
-                print("Auth Success")
-                self.controller.change_state(GenericAmountInputState)
-            else:
-                print("Auth Failed")
-                self.controller.ui.show_message("暗証番号が違います！", visible=True)
-                self.input_buffer.clear()
-                # ユーザーに失敗を通知してリトライさせるフローが必要だが、簡易的にクリアだけ
+            ctx["pin"] = pin
+            self.controller.change_state(GenericAmountInputState)
 
         elif txn == "create_account":
-            # 初回入力 -> 確認入力フローが必要だが、仕様では「暗証番号をもう一度入力させる」
-            # ここでは state 内で flag を持つか、 Context に `pin_step` を持つ
-            step = self.controller.shared_context.get("pin_step", 1)
+            step = ctx.get("pin_step", 1)
 
             if step == 1:
-                self.controller.shared_context["first_pin"] = pin
-                self.controller.shared_context["pin_step"] = 2
+                ctx["first_pin"] = pin
+                ctx["pin_step"] = 2
                 self.input_buffer.clear()
-                self.controller.ui.show_message("確認のためもう一度入力してください", visible=True)
-                # キー配置を変えるかどうかは仕様次第だが、セキュリティ的には変えたほうがいい
                 self.controller.pin_pad.reset_random_mapping()
-                self.controller.ui.show_keypad(self.controller.pin_pad.get_layout_info(), visible=True)
+                self._message = "確認のためもう一度入力 (2回目)"
 
             elif step == 2:
-                first = self.controller.shared_context.get("first_pin")
+                first = ctx.get("first_pin")
                 if first == pin:
-                    self.controller.shared_context["pin"] = pin
-                    self.controller.play_sound("pushenter")
+                    ctx["pin"] = pin
                     self.controller.change_state(ConfirmationState)
                 else:
-                    self.controller.ui.show_message("一致しません。最初からやり直してください。", visible=True)
-                    self.controller.shared_context["pin_step"] = 1
+                    ctx["pin_step"] = 1
                     self.input_buffer.clear()
+                    self.controller.pin_pad.reset_random_mapping()
+                    self._message = "一致しません。最初から入力 (初回)"
 
-# --- 口座作成フロー (Name -> PIN x2 -> Check -> Done) ---
 
+# =============================================================================
+# 口座作成フロー
+# =============================================================================
 
 class CreateAccountNameInputState(State):
-    def on_enter(self, prev_state=None):
-        self.controller.ui.clear_content()
-        self.controller.ui.set_header("新規口座作成")
-        self.controller.ui.show_message("お名前を入力してください(コンソールで入力)", visible=True)
-        # 実装簡易化のためキーボード(英語)入力を受け付ける。
-        self.name_buffer = ""
-        self.controller.ui.show_input_field("", visible=True)
-        self.controller.ui.show_selection_guides(right_text="戻る")
+    """名前入力"""
 
-    def update(self, frame, gesture, key_event=None):
-        self.controller.ui.update_background(frame)
+    def on_enter(self, prev_state=None):
+        self.name_buffer = ""
+        self.controller.ui.set_click_callback(self._on_click)
+
+    def on_exit(self):
+        self.controller.ui.set_click_callback(None)
+
+    def _on_click(self, zone):
+        if zone == "right":
+            self.controller.change_state(MenuState)
+
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+        self.controller.ui.render_frame(frame, {
+            "mode": "input",
+            "header": "新規口座作成",
+            "message": "お名前を入力 (キーボード)",
+            "input_value": self.name_buffer,
+            "input_max": 10,
+            "align_right": False,
+            "guides": {"right": "戻る"},
+            "progress": progress,
+            "current_direction": current_direction,
+            "debug_info": debug_info,
+        })
+
         if gesture == "right":
             self.controller.change_state(MenuState)
             return
 
         if key_event:
-            # 簡易文字入力
-            if len(key_event.char) == 1 and key_event.char.isprintable():
-                self.name_buffer += key_event.char
-            elif key_event.keysym == "BackSpace":
-                self.name_buffer = self.name_buffer[:-1]
-            elif key_event.keysym == "Return":
-                if len(self.name_buffer) > 0:
-                    self.controller.shared_context["name"] = self.name_buffer
-                    self.controller.play_sound("pushenter")
-                    # 次はPIN設定
-                    self.controller.shared_context["pin_step"] = 1
-                    self.controller.change_state(PinInputState)
+            self._handle_key(key_event)
 
-        self.controller.ui.show_input_field(self.name_buffer, visible=True)
+    def _handle_key(self, key_event):
+        char = key_event.char
+        if len(char) == 1 and char.isprintable():
+            self.name_buffer += char
+        elif key_event.keysym == "BackSpace":
+            self.name_buffer = self.name_buffer[:-1]
+        elif key_event.keysym == "Return":
+            if len(self.name_buffer) > 0:
+                self.controller.play_sound("push-enter")
+                self.controller.shared_context["name"] = self.name_buffer
+                self.controller.shared_context["pin_step"] = 1
+                self.controller.change_state(PinInputState)

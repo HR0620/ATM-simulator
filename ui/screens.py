@@ -1,295 +1,731 @@
+"""
+ATM UI モジュール (リファクタリング版)
+
+設計意図:
+- レイアウト定数を明示的に定義
+- カメラ領域(4:3)とデバッグパネル(右側)を意図的に分離
+- 保守性を高めるため描画メソッドを細分化
+"""
 import tkinter as tk
 from PIL import Image, ImageTk
 import cv2
 
 
-class ATMUI:
-    """
-    ATMの汎用画面クラス (ATMスタイル UI)
-    - UIが主役、カメラは右上にPIP表示 (操作ボタンを隠さないため)
-    - メインメニューは 3カラム (左: 振込, 中: 引出, 右: 口座作成)
-    """
+class Layout:
+    """レイアウト定数"""
+    HEADER_HEIGHT = 80
+    FOOTER_HEIGHT = 80
+    DEBUG_PANEL_WIDTH = 200
 
+
+class ATMUI:
     def __init__(self, root, config):
         self.root = root
         self.config = config
 
-        # 全体背景
-        self.root.configure(bg="#e0e0e0")
+        # 初期ウィンドウサイズ
+        self.width = config["ui"]["window_width"]
+        self.height = config["ui"]["window_height"]
 
-        # --- メインコンテナ ---
-        self.main_frame = tk.Frame(self.root, bg="#f0f0f0")
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # 1. ヘッダーエリア
-        self.header_frame = tk.Frame(self.main_frame, bg="#004080", height=80)
-        self.header_frame.pack(fill=tk.X, side=tk.TOP)
-
-        self.header_label = tk.Label(self.header_frame, text="メインメニュー", font=(
-            "Meiryo UI", 28, "bold"), bg="#004080", fg="white")
-        self.header_label.pack(side=tk.LEFT, padx=30, pady=15)
-
-        # "ESC: 終了" ラベル (ヘッダー右)
-        self.esc_label = tk.Label(self.header_frame, text="ESC: 終了", font=("Meiryo UI", 12), bg="#004080", fg="#cccccc")
-        self.esc_label.pack(side=tk.RIGHT, padx=20)
-
-        # 2. コンテンツエリア
-        self.content_frame = tk.Frame(self.main_frame, bg="#f0f0f0")
-        self.content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-
-        # A. メッセージ表示
-        self.message_label = tk.Label(self.content_frame, text="", font=(
-            "Meiryo UI", 24), bg="#f0f0f0", fg="#333", justify=tk.CENTER)
-
-        # B. 入力フィールド (桁区切り表示)
-        self.input_container = tk.Frame(self.content_frame, bg="#f0f0f0")
-        self.digit_labels = []  # List of Label widgets for digits
-
-        # C. 3カラムメニュー (ボタンエリア)
-        self.menu_grid_frame = tk.Frame(self.content_frame, bg="#f0f0f0")
-
-        # 左ボタン (振込)
-        self.btn_left = tk.Frame(self.menu_grid_frame, bg="#005bb5", bd=5, relief="raised")
-        self.lbl_left_title = tk.Label(self.btn_left, text="振込", font=(
-            "Meiryo UI", 32, "bold"), bg="#005bb5", fg="white")
-
-        # 中央ボタン (引き出し)
-        self.btn_center = tk.Frame(self.menu_grid_frame, bg="#f5f5f5", bd=5, relief="raised")
-        self.lbl_center_title = tk.Label(self.btn_center, text="引き出し", font=(
-            "Meiryo UI", 32, "bold"), bg="#f5f5f5", fg="#333")
-
-        # 右ボタン (口座作成)
-        self.btn_right = tk.Frame(self.menu_grid_frame, bg="#e67e22", bd=5, relief="raised")
-        self.lbl_right_title = tk.Label(self.btn_right, text="口座作成", font=(
-            "Meiryo UI", 32, "bold"), bg="#e67e22", fg="white")
-
-        # D. キーパッド
-        self.keypad_frame = tk.Frame(self.main_frame, bg="#cfcfcf", bd=3, relief="groove")
-
-        # E. 汎用ガイド (Yes/No 等)
-        self.guide_frame = tk.Frame(self.main_frame, bg="#f0f0f0", height=80)
-
-        self.left_guide_container = tk.Frame(self.guide_frame, bg="#005bb5", padx=20, pady=10, relief="raised", bd=3)
-        self.left_guide_lbl = tk.Label(self.left_guide_container, text="", font=(
-            "Meiryo UI", 20, "bold"), bg="#005bb5", fg="white")
-        self.left_guide_lbl.pack()
-
-        self.right_guide_container = tk.Frame(self.guide_frame, bg="#e67e22", padx=20, pady=10, relief="raised", bd=3)
-        self.right_guide_lbl = tk.Label(self.right_guide_container, text="", font=(
-            "Meiryo UI", 20, "bold"), bg="#e67e22", fg="white")
-        self.right_guide_lbl.pack()
-
-        # 3. カメラ映像エリア (PIP) - 右上に配置
-        # ヘッダーの下、右端に寄せる
-        self.camera_frame = tk.Frame(self.root, bg="black", bd=2, relief="solid")
-        # placeはroot基準
-        self.camera_frame.place(relx=0.98, rely=0.12, anchor=tk.NE, width=280, height=210)
-
-        self.camera_label = tk.Label(self.camera_frame, text="Security Camera",
-                                     font=("Arial", 8), fg="white", bg="black")
-        self.camera_label.pack(side=tk.TOP, fill=tk.X)
-
-        self.canvas = tk.Canvas(self.camera_frame, bg="black", highlightthickness=0)
+        # Canvas
+        self.canvas = tk.Canvas(
+            root, bg="black", highlightthickness=0,
+            width=self.width, height=self.height
+        )
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
-        # Face Guide Overlay (Canvas上のタグ管理)
-        self.guide_rect_id = None
-        self.face_rect_id = None
+        # リサイズイベント
+        self.canvas.bind("<Configure>", self._on_resize)
 
-    def update_background(self, frame, face_result=None):
-        """
-        カメラ映像を右上のPIPエリアに描画
-        face_result: (status, guide_box, face_rect) from FacePositionChecker
-        """
+        # クリックイベント
+        self.canvas.bind("<Button-1>", self._on_click)
+        self._click_callback = None
+        self._photo = None
+
+        # レイアウト計算
+        self._calculate_layout()
+
+        self._state_data = {}
+
+    def _calculate_layout(self):
+        """現在のウィンドウサイズに基づいてレイアウトを計算"""
+        # メインエリアとデバッグパネル
+        self.main_width = self.width - Layout.DEBUG_PANEL_WIDTH
+        self.main_height = self.height
+
+        # ボタン領域
+        content_y1 = Layout.HEADER_HEIGHT
+        content_y2 = self.height - Layout.FOOTER_HEIGHT
+        third = self.main_width // 3
+
+        self.button_zones = {
+            "left": {
+                "x1": 0, "y1": content_y1,
+                "x2": third, "y2": content_y2
+            },
+            "center": {
+                "x1": third, "y1": content_y1,
+                "x2": third * 2, "y2": content_y2
+            },
+            "right": {
+                "x1": third * 2, "y1": content_y1,
+                "x2": self.main_width, "y2": content_y2
+            },
+        }
+
+        # ガイドボタン領域
+        footer_y = self.height - Layout.FOOTER_HEIGHT + 10
+        self.guide_zones = {
+            "left": {
+                "x1": 20, "y1": footer_y,
+                "x2": 180, "y2": footer_y + 60
+            },
+            "right": {
+                "x1": self.main_width - 180, "y1": footer_y,
+                "x2": self.main_width - 20, "y2": footer_y + 60
+            },
+        }
+
+    def _on_resize(self, event):
+        """ウィンドウリサイズ時にレイアウトを再計算"""
+        new_width = event.width
+        new_height = event.height
+
+        # サイズが変わった場合のみ更新
+        if new_width != self.width or new_height != self.height:
+            self.width = new_width
+            self.height = new_height
+            self._calculate_layout()
+
+    def set_click_callback(self, callback):
+        self._click_callback = callback
+
+    def _on_click(self, event):
+        if self._click_callback is None:
+            return
+
+        x, y = event.x, event.y
+
+        # メインエリア外は無視
+        if x > self.main_width:
+            return
+
+        for zone_name, zone in self.button_zones.items():
+            if (zone["x1"] <= x <= zone["x2"] and
+                    zone["y1"] <= y <= zone["y2"]):
+                self._click_callback(zone_name)
+                return
+
+        for zone_name, zone in self.guide_zones.items():
+            if (zone["x1"] <= x <= zone["x2"] and
+                    zone["y1"] <= y <= zone["y2"]):
+                self._click_callback(zone_name)
+                return
+
+    def render_frame(self, frame, state_data: dict = None):
+        if state_data:
+            self._state_data = state_data
+
+        # 背景クリア
+        self.canvas.delete("all")
+
+        # 1. カメラ映像をメインエリアに描画
+        self._draw_camera_background(frame)
+
+        # 2. デバッグパネル (右側)
+        self._draw_debug_panel()
+
+        # 3. ヘッダー
+        header = self._state_data.get("header", "")
+        self._draw_header(header)
+
+        # 4. モード別コンテンツ
+        mode = self._state_data.get("mode", "menu")
+        self._draw_mode_content(mode)
+
+    def _draw_camera_background(self, frame):
+        """カメラ映像をメインエリアに全画面で描画"""
         if frame is None:
             return
 
-        # BGR -> RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        pil_image = Image.fromarray(frame_rgb)
+        img = Image.fromarray(frame_rgb)
 
-        # Canvasサイズに合わせてリサイズ
-        cw = 280
-        ch = 210
+        # メインエリア全体に引き伸ばし（アスペクト比無視）
+        img = img.resize(
+            (self.main_width, self.main_height),
+            Image.Resampling.LANCZOS
+        )
 
-        # 比率を維持しつつリサイズするか、単純にリサイズするか
-        # ここでは単純リサイズ (OpenCV側で既にアスペクト比考慮されている前提なら)
-        pil_image = pil_image.resize((cw, ch), Image.Resampling.LANCZOS)
+        self._photo = ImageTk.PhotoImage(img)
+        self.canvas.create_image(
+            0, 0, anchor=tk.NW, image=self._photo, tags="background"
+        )
 
-        self.photo = ImageTk.PhotoImage(image=pil_image)
-        self.canvas.create_image(0, 0, image=self.photo, anchor=tk.NW)
+    def _draw_debug_panel(self):
+        """右側のデバッグパネル（全体を埋める）"""
+        x = self.main_width
+        w = Layout.DEBUG_PANEL_WIDTH
+        h = self.height
 
-        # ガイド枠描画
-        self.canvas.delete("guide")  # 前のフレームの描画を消す
+        # 背景（全体を塗りつぶし）
+        self.canvas.create_rectangle(
+            x, 0, x + w, h,
+            fill="#1a1a2e", outline="", tags="overlay"
+        )
+
+        # 区切り線
+        self.canvas.create_line(
+            x, 0, x, h,
+            fill="#333366", width=2, tags="overlay"
+        )
+
+        # タイトル
+        self.canvas.create_rectangle(
+            x, 0, x + w, 40,
+            fill="#0d0d1a", tags="overlay"
+        )
+        self.canvas.create_text(
+            x + w // 2, 20, text="🔍 デバッグ情報",
+            fill="#00aaff", font=("Meiryo UI", 11, "bold"), tags="overlay"
+        )
+
+        # デバッグ情報取得
+        debug = self._state_data.get("debug_info", {})
+        if not debug:
+            self.canvas.create_text(
+                x + w // 2, h // 2, text="情報なし",
+                fill="#666666", font=("Meiryo UI", 12), tags="overlay"
+            )
+            return
+
+        y_pos = 55
+
+        # 状態名
+        state_name = debug.get("state_name", "---")
+        self.canvas.create_text(
+            x + 10, y_pos, anchor=tk.NW, text="📌 State",
+            fill="#888888", font=("Meiryo UI", 9), tags="overlay"
+        )
+        y_pos += 18
+        # 長い名前は短縮
+        short_name = state_name.replace("State", "")
+        self.canvas.create_text(
+            x + 10, y_pos, anchor=tk.NW, text=short_name,
+            fill="#ffffff", font=("Consolas", 11, "bold"), tags="overlay"
+        )
+        y_pos += 35
+
+        # AI予測
+        pred = debug.get("prediction")
+        if pred:
+            class_name = pred.get("class_name", "---")
+            confidence = pred.get("confidence", 0)
+            color = self._get_class_color(class_name)
+
+            self.canvas.create_text(
+                x + 10, y_pos, anchor=tk.NW, text="🤖 AI認識",
+                fill="#888888", font=("Meiryo UI", 9), tags="overlay"
+            )
+            y_pos += 20
+
+            # クラス名（大きく）
+            self.canvas.create_text(
+                x + w // 2, y_pos + 15, text=class_name.upper(),
+                fill=color, font=("Consolas", 18, "bold"), tags="overlay"
+            )
+            y_pos += 45
+
+            # 信頼度
+            self.canvas.create_text(
+                x + 10, y_pos, anchor=tk.NW,
+                text=f"信頼度: {confidence*100:.1f}%",
+                fill="#aaaaaa", font=("Meiryo UI", 9), tags="overlay"
+            )
+            y_pos += 18
+
+            bar_w = w - 20
+            self.canvas.create_rectangle(
+                x + 10, y_pos, x + 10 + bar_w, y_pos + 12,
+                fill="#333333", outline="#444444", tags="overlay"
+            )
+            self.canvas.create_rectangle(
+                x + 10, y_pos, x + 10 + bar_w * confidence, y_pos + 12,
+                fill=color, tags="overlay"
+            )
+            y_pos += 30
+
+        # 認識進捗
+        progress = debug.get("progress", 0)
+        self.canvas.create_text(
+            x + 10, y_pos, anchor=tk.NW, text="⏳ 認識進捗",
+            fill="#888888", font=("Meiryo UI", 9), tags="overlay"
+        )
+        y_pos += 18
+
+        bar_w = w - 20
+        self.canvas.create_rectangle(
+            x + 10, y_pos, x + 10 + bar_w, y_pos + 18,
+            fill="#333333", outline="#444444", tags="overlay"
+        )
+        if progress > 0:
+            self.canvas.create_rectangle(
+                x + 10, y_pos, x + 10 + bar_w * progress, y_pos + 18,
+                fill="#00ff00", tags="overlay"
+            )
+            # パーセント表示
+            self.canvas.create_text(
+                x + w // 2, y_pos + 9, text=f"{progress*100:.0f}%",
+                fill="white", font=("Consolas", 10, "bold"), tags="overlay"
+            )
+        y_pos += 35
+
+        # ロック状態
+        is_locked = debug.get("is_locked", False)
+        self.canvas.create_text(
+            x + 10, y_pos, anchor=tk.NW, text="🔒 ステータス",
+            fill="#888888", font=("Meiryo UI", 9), tags="overlay"
+        )
+        y_pos += 20
+
+        lock_text = "LOCKED" if is_locked else "READY"
+        lock_color = "#ff6666" if is_locked else "#66ff66"
+        lock_bg = "#440000" if is_locked else "#004400"
+
+        self.canvas.create_rectangle(
+            x + 20, y_pos, x + w - 20, y_pos + 30,
+            fill=lock_bg, outline=lock_color, width=2, tags="overlay"
+        )
+        self.canvas.create_text(
+            x + w // 2, y_pos + 15, text=lock_text,
+            fill=lock_color, font=("Consolas", 14, "bold"), tags="overlay"
+        )
+        y_pos += 50
+
+        # 操作ヒント
+        self.canvas.create_text(
+            x + 10, y_pos, anchor=tk.NW, text="💡 操作ガイド",
+            fill="#888888", font=("Meiryo UI", 9), tags="overlay"
+        )
+        y_pos += 20
+
+        hints = [
+            "左に手を振る → 左選択",
+            "中央に手を出す → 中央",
+            "右に手を振る → 右選択",
+            "ESC → 終了",
+        ]
+        for hint in hints:
+            self.canvas.create_text(
+                x + 10, y_pos, anchor=tk.NW, text=hint,
+                fill="#666666", font=("Meiryo UI", 8), tags="overlay"
+            )
+            y_pos += 16
+
+    def _get_class_color(self, class_name):
+        """クラス名に応じた色"""
+        colors = {
+            "left": "#00aaff",
+            "center": "#ffffff",
+            "right": "#ff8800",
+            "free": "#888888",
+        }
+        return colors.get(class_name, "#ffffff")
+
+    def _draw_header(self, text):
+        """ヘッダー描画"""
+        self.canvas.create_rectangle(
+            0, 0, self.main_width, Layout.HEADER_HEIGHT,
+            fill="#004080", stipple="gray50", tags="overlay"
+        )
+        self.canvas.create_text(
+            self.main_width // 2, Layout.HEADER_HEIGHT // 2,
+            text=text, fill="white",
+            font=("Meiryo UI", 28, "bold"), tags="overlay"
+        )
+        self.canvas.create_text(
+            self.main_width - 60, 40, text="ESC: 終了",
+            fill="#cccccc", font=("Meiryo UI", 10), tags="overlay"
+        )
+
+    def _draw_mode_content(self, mode):
+        """モード別コンテンツ描画"""
+        if mode == "menu":
+            self._draw_menu_overlay()
+        elif mode == "input":
+            self._draw_input_overlay()
+        elif mode == "pin_input":
+            self._draw_pin_input_overlay()
+        elif mode == "confirm":
+            self._draw_confirm_overlay()
+        elif mode == "face_align":
+            self._draw_face_align_overlay()
+        elif mode == "result":
+            self._draw_result_overlay()
+
+    def _draw_menu_overlay(self):
+        """メインメニュー"""
+        buttons = self._state_data.get("buttons", [])
+        current_dir = self._state_data.get("current_direction")
+        progress = self._state_data.get("progress", 0)
+
+        for btn in buttons:
+            zone_name = btn.get("zone")
+            btn_progress = progress if zone_name == current_dir else 0
+            self._draw_button_zone(btn, btn_progress)
+
+    def _draw_button_zone(self, btn_data, progress=0):
+        """ボタン領域描画"""
+        zone_name = btn_data.get("zone")
+        zone = self.button_zones.get(zone_name)
+        if not zone:
+            return
+
+        x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
+        label = btn_data.get("label", "")
+
+        colors = {"left": "#005bb5", "center": "#f5f5f5", "right": "#e67e22"}
+        text_colors = {"left": "white", "center": "#333333", "right": "white"}
+        bg = colors.get(zone_name, "#ffffff")
+        fg = text_colors.get(zone_name, "#333333")
+
+        # ボタン背景
+        pad = 15
+        self.canvas.create_rectangle(
+            x1 + pad, y1 + pad, x2 - pad, y2 - pad,
+            fill=bg, stipple="gray50", outline="#ffffff", width=2, tags="overlay"
+        )
+
+        # ラベル
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        self.canvas.create_text(
+            cx, cy - 10, text=label, fill=fg,
+            font=("Meiryo UI", 28, "bold"), tags="overlay"
+        )
+
+        # 操作説明
+        self.canvas.create_text(
+            cx, cy + 35, text="クリック / ジェスチャー",
+            fill=fg, font=("Meiryo UI", 9), tags="overlay"
+        )
+
+        # 進捗ゲージ
+        if progress > 0:
+            gy = y2 - pad - 25
+            gw = (x2 - x1 - pad * 2 - 20) * progress
+            self.canvas.create_rectangle(
+                x1 + pad + 10, gy, x2 - pad - 10, gy + 15,
+                fill="#333333", outline="#666666", tags="overlay"
+            )
+            self.canvas.create_rectangle(
+                x1 + pad + 10, gy, x1 + pad + 10 + gw, gy + 15,
+                fill="#00cc00", tags="overlay"
+            )
+
+    def _draw_input_overlay(self):
+        """入力画面"""
+        message = self._state_data.get("message", "")
+        input_value = self._state_data.get("input_value", "")
+        max_digits = self._state_data.get("input_max", 6)
+        unit = self._state_data.get("input_unit", "")
+        align_right = self._state_data.get("align_right", False)
+
+        cx = self.main_width // 2
+        cy = self.height // 2
+        box_w = max_digits * 45 + 80
+
+        # 背景ボックス
+        self.canvas.create_rectangle(
+            cx - box_w // 2, cy - 80, cx + box_w // 2, cy + 80,
+            fill="#ffffff", stipple="gray50",
+            outline="#cccccc", width=2, tags="overlay"
+        )
+
+        # メッセージ
+        self.canvas.create_text(
+            cx, cy - 50, text=message,
+            fill="#333333", font=("Meiryo UI", 16), tags="overlay"
+        )
+
+        # 入力ボックス
+        start_x = cx - (max_digits * 45) // 2
+        input_len = len(input_value)
+
+        for i in range(max_digits):
+            bx = start_x + i * 45
+            val = ""
+            bg = "#ffffff"
+
+            if align_right:
+                val_idx = i - (max_digits - input_len)
+                if 0 <= val_idx < input_len:
+                    val = input_value[val_idx]
+                # キャレットは常に右端
+                if i == max_digits - 1 and input_len < max_digits:
+                    bg = "#e0f7fa"
+            else:
+                if i < input_len:
+                    val = input_value[i]
+                elif i == input_len:
+                    bg = "#e0f7fa"
+
+            self.canvas.create_rectangle(
+                bx, cy - 20, bx + 38, cy + 20,
+                fill=bg, outline="#999999", width=2, tags="overlay"
+            )
+            self.canvas.create_text(
+                bx + 19, cy, text=val,
+                fill="#333333", font=("Arial", 24, "bold"), tags="overlay"
+            )
+
+        # 単位
+        if unit:
+            self.canvas.create_text(
+                start_x + max_digits * 45 + 20, cy, text=unit,
+                fill="#333333", font=("Meiryo UI", 20, "bold"), tags="overlay"
+            )
+
+        self._draw_guides()
+
+    def _draw_pin_input_overlay(self):
+        """暗証番号入力画面"""
+        message = self._state_data.get("message", "")
+        input_value = self._state_data.get("input_value", "")
+        keypad_layout = self._state_data.get("keypad_layout", [])
+
+        cx = self.main_width // 2
+        cy = self.height // 2
+
+        # メッセージ
+        self.canvas.create_text(
+            cx, cy - 180, text=message,
+            fill="white", font=("Meiryo UI", 16, "bold"), tags="overlay"
+        )
+
+        # PIN入力欄
+        for i in range(4):
+            bx = cx - 90 + i * 45
+            by = cy - 145
+            val = "*" if i < len(input_value) else ""
+            bg = "#e0f7fa" if i == len(input_value) else "#ffffff"
+
+            self.canvas.create_rectangle(
+                bx, by, bx + 38, by + 45,
+                fill=bg, outline="#999999", width=2, tags="overlay"
+            )
+            self.canvas.create_text(
+                bx + 19, by + 22, text=val,
+                fill="#333333", font=("Arial", 24, "bold"), tags="overlay"
+            )
+
+        # キーパッドグリッド
+        if keypad_layout:
+            gx = cx - 110
+            gy = cy - 70
+            cw, ch = 75, 55
+
+            for row_idx, row in enumerate(keypad_layout):
+                for col_idx, item in enumerate(row):
+                    if item is None:
+                        continue
+
+                    kx = gx + col_idx * cw
+                    ky = gy + row_idx * ch
+                    key = item.get("key", "")
+                    num = item.get("num", "")
+
+                    self.canvas.create_rectangle(
+                        kx, ky, kx + cw - 5, ky + ch - 5,
+                        fill="#ffffff", outline="#444444",
+                        width=2, tags="overlay"
+                    )
+                    self.canvas.create_text(
+                        kx + (cw - 5) // 2, ky + 18,
+                        text=num, fill="#333333",
+                        font=("Arial", 20, "bold"), tags="overlay"
+                    )
+                    self.canvas.create_text(
+                        kx + (cw - 5) // 2, ky + ch - 12,
+                        text=f"[{key.upper()}]", fill="#888888",
+                        font=("Arial", 9), tags="overlay"
+                    )
+
+        self._draw_guides()
+
+    def _draw_confirm_overlay(self):
+        """確認画面"""
+        message = self._state_data.get("message", "")
+        current_dir = self._state_data.get("current_direction")
+        progress = self._state_data.get("progress", 0)
+
+        cx = self.main_width // 2
+        cy = self.height // 2
+
+        # メッセージボックス
+        self.canvas.create_rectangle(
+            cx - 280, cy - 90, cx + 280, cy + 90,
+            fill="#ffffff", stipple="gray50",
+            outline="#cccccc", width=2, tags="overlay"
+        )
+        self.canvas.create_text(
+            cx, cy, text=message, fill="#333333",
+            font=("Meiryo UI", 18), tags="overlay"
+        )
+
+        # はい/いいえボタン
+        left_p = progress if current_dir == "left" else 0
+        self._draw_action_button(80, self.height - 90, "はい 👈", "#005bb5", left_p)
+
+        right_p = progress if current_dir == "right" else 0
+        self._draw_action_button(
+            self.main_width - 230, self.height - 90,
+            "いいえ 👉", "#e67e22", right_p
+        )
+
+    def _draw_action_button(self, x, y, label, color, progress=0):
+        """アクションボタン描画"""
+        w, h = 150, 55
+        self.canvas.create_rectangle(
+            x, y, x + w, y + h,
+            fill=color, stipple="gray50",
+            outline="#ffffff", width=2, tags="overlay"
+        )
+        self.canvas.create_text(
+            x + w // 2, y + h // 2, text=label,
+            fill="white", font=("Meiryo UI", 14, "bold"), tags="overlay"
+        )
+        if progress > 0:
+            gw = w * progress
+            self.canvas.create_rectangle(
+                x, y + h - 6, x + gw, y + h,
+                fill="#00cc00", tags="overlay"
+            )
+
+    def _draw_result_overlay(self):
+        """結果画面"""
+        message = self._state_data.get("message", "")
+        is_error = self._state_data.get("is_error", False)
+        countdown = self._state_data.get("countdown", 0)
+
+        cx = self.main_width // 2
+        cy = self.height // 2
+        bg = "#cc0000" if is_error else "#004080"
+
+        self.canvas.create_rectangle(
+            cx - 280, cy - 90, cx + 280, cy + 90,
+            fill=bg, stipple="gray50",
+            outline="#ffffff", width=3, tags="overlay"
+        )
+        self.canvas.create_text(
+            cx, cy, text=message, fill="white",
+            font=("Meiryo UI", 18, "bold"), tags="overlay"
+        )
+
+        if countdown > 0:
+            self.canvas.create_text(
+                cx, cy + 70, text=f"メニューへ戻る: {countdown}秒",
+                fill="white", font=("Meiryo UI", 14), tags="overlay"
+            )
+
+    def _draw_face_align_overlay(self):
+        """顔位置合わせ画面"""
+        face_result = self._state_data.get("face_result")
+
+        cx = self.main_width // 2
+        cy = self.height // 2
+        box_size = min(self.main_width, self.height) // 2
+
+        status = "waiting"
+        color = "#ffffff"
+        width = 2
 
         if face_result:
-            status, guide_box, face_rect = face_result
-
-            # guide_box scaling
-            # guide_box は元の frame 解像度 (例: 640x480) 基準
-            # これを (cw, ch) に変換する必要がある
-            orig_h, orig_w = frame.shape[:2]
-            scale_x = cw / orig_w
-            scale_y = ch / orig_h
-
-            gx, gy, gw, gh = guide_box
-            cx1 = gx * scale_x
-            cy1 = gy * scale_y
-            cx2 = (gx + gw) * scale_x
-            cy2 = (gy + gh) * scale_y
-
-            color = "white"
-            width = 2
+            status = face_result[0]
             if status == "detecting":
-                color = "yellow"
-                width = 3
+                color = "#ffff00"
+                width = 4
             elif status == "confirmed":
                 color = "#00ff00"
-                width = 5
+                width = 6
 
-            self.canvas.create_rectangle(cx1, cy1, cx2, cy2, outline=color, width=width, tags="guide")
+        self.canvas.create_rectangle(
+            cx - box_size // 2, cy - box_size // 2,
+            cx + box_size // 2, cy + box_size // 2,
+            outline=color, width=width, tags="overlay"
+        )
 
-            if status == "waiting":
-                # ガイドテキスト
-                self.canvas.create_text(cw / 2, ch / 2, text="顔を枠に合わせてください", fill="white",
-                                        font=("Meiryo UI", 10, "bold"), tags="guide")
+        msg = ""
+        if status == "waiting":
+            msg = "顔を枠の中に合わせてください"
+        elif status == "detecting":
+            msg = "認識中..."
+
+        if msg:
+            self.canvas.create_text(
+                cx, cy + box_size // 2 + 35, text=msg,
+                fill=color, font=("Meiryo UI", 20, "bold"), tags="overlay"
+            )
+
+    def _draw_guides(self):
+        """ガイドボタン描画"""
+        guides = self._state_data.get("guides", {})
+        current_dir = self._state_data.get("current_direction")
+        progress = self._state_data.get("progress", 0)
+
+        if "left" in guides:
+            left_p = progress if current_dir == "left" else 0
+            zone = self.guide_zones["left"]
+            self._draw_guide_button(zone, f"👈 {guides['left']}", "#005bb5", left_p)
+
+        if "right" in guides:
+            right_p = progress if current_dir == "right" else 0
+            zone = self.guide_zones["right"]
+            self._draw_guide_button(zone, f"{guides['right']} 👉", "#e67e22", right_p)
+
+    def _draw_guide_button(self, zone, text, color, progress=0):
+        """ガイドボタン描画"""
+        x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
+        w = x2 - x1
+
+        self.canvas.create_rectangle(
+            x1, y1, x2, y2, fill=color, stipple="gray50",
+            outline="#ffffff", width=2, tags="overlay"
+        )
+        self.canvas.create_text(
+            (x1 + x2) // 2, (y1 + y2) // 2, text=text,
+            fill="white", font=("Meiryo UI", 12, "bold"), tags="overlay"
+        )
+
+        if progress > 0:
+            gw = w * progress
+            self.canvas.create_rectangle(
+                x1, y2 - 5, x1 + gw, y2,
+                fill="#00cc00", tags="overlay"
+            )
+
+    # ===== 後方互換性 =====
 
     def set_header(self, text):
-        self.header_label.config(text=text)
+        self._state_data["header"] = text
 
     def clear_content(self):
-        """コンテンツエリアをリセット"""
-        self.message_label.pack_forget()
-        self.input_container.pack_forget()
-        self.menu_grid_frame.pack_forget()
-        self.keypad_frame.place_forget()
-        self.guide_frame.pack_forget()
-        # Input digits reset
-        for w in self.input_container.winfo_children():
-            w.destroy()
+        self._state_data = {}
+        self.canvas.delete("overlay")
 
     def show_main_menu(self):
-        """3カラムのメインメニューを表示"""
-        self.clear_content()
-        self.set_header("メインメニュー")
-
-        self.menu_grid_frame.pack(fill=tk.BOTH, expand=True, padx=50, pady=50)
-
-        # Grid構成 (1行3列)
-        self.menu_grid_frame.columnconfigure(0, weight=1)
-        self.menu_grid_frame.columnconfigure(1, weight=1)
-        self.menu_grid_frame.columnconfigure(2, weight=1)
-        self.menu_grid_frame.rowconfigure(0, weight=1)
-
-        # 左ボタン
-        self.btn_left.grid(row=0, column=0, sticky="nsew", padx=20)
-        self.lbl_left_title.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-
-        # 中央ボタン
-        self.btn_center.grid(row=0, column=1, sticky="nsew", padx=20)
-        self.lbl_center_title.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-
-        # 右ボタン
-        self.btn_right.grid(row=0, column=2, sticky="nsew", padx=20)
-        self.lbl_right_title.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        pass
 
     def show_message(self, text, visible=True):
         if visible:
-            self.message_label.config(text=text)
-            self.message_label.pack(pady=40, anchor=tk.CENTER)
-        else:
-            self.message_label.pack_forget()
+            self._state_data["message"] = text
 
-    def show_fixed_input_field(self, current_text, max_digits=4, is_pin=False, unit_text=""):
-        """
-        固定枠による入力フィールド表示
-        [ 1 ] [ 2 ] [ _ ] [ ]  円
-        """
-        self.input_container.pack(pady=40)
-
-        # 再描画 (効率化のためDiff更新したいが、簡易実装として全再生成)
-        for w in self.input_container.winfo_children():
-            w.destroy()
-
-        # 枠コンテナ (中央寄せ)
-        box_frame = tk.Frame(self.input_container, bg="#f0f0f0")
-        box_frame.pack()
-
-        # 枠生成
-        for i in range(max_digits):
-            val = ""
-            bg_color = "white"
-
-            if i < len(current_text):
-                val = "*" if is_pin else current_text[i]
-            elif i == len(current_text):
-                # キャレット位置（まだ入力していないが次はここ）
-                # キャレットを表示するか、あるいは空枠を目立たせるか
-                bg_color = "#e0f7fa"  # 薄い水色でフォーカス表現
-
-            lbl = tk.Label(box_frame, text=val, font=("Arial", 36, "bold"),
-                           bg=bg_color, relief="solid", bd=1, width=2, height=1)
-            lbl.pack(side=tk.LEFT, padx=5)
-
-        # 単位 (枠外)
-        if unit_text:
-            unit_lbl = tk.Label(box_frame, text=unit_text, font=("Meiryo UI", 24, "bold"), bg="#f0f0f0")
-            unit_lbl.pack(side=tk.LEFT, padx=10, anchor=tk.S)
-
-    def show_name_input_field(self, current_text):
-        """名前入力用のフリーテキスト風フィールド"""
-        self.input_container.pack(pady=40)
-        for w in self.input_container.winfo_children():
-            w.destroy()
-
-        lbl = tk.Label(self.input_container, text=current_text + "_", font=("Meiryo UI", 32),
-                       bg="white", relief="sunken", bd=2, width=20)
-        lbl.pack()
-
-    def show_selection_guides(self, left_text=None, right_text=None, center_text=None):
-        """画面下部にガイドを表示"""
-        self.guide_frame.pack_forget()
-        self.left_guide_container.pack_forget()
-        self.right_guide_container.pack_forget()
-
-        has_guide = False
-        if left_text:
-            self.left_guide_lbl.config(text=f"👈 {left_text}")
-            self.left_guide_container.pack(side=tk.LEFT, padx=50, pady=20)
-            has_guide = True
-
-        if right_text:
-            self.right_guide_lbl.config(text=f"{right_text} 👉")
-            self.right_guide_container.pack(side=tk.RIGHT, padx=50, pady=20)
-            has_guide = True
-
-        if has_guide:
-            self.guide_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=20)
-
-    def show_keypad(self, layout_data, visible=True):
-        """ランダムキーパッド表示"""
-        if not visible:
-            self.keypad_frame.place_forget()
-            return
-
-        # 画面中央下寄りに配置
-        self.keypad_frame.place(relx=0.5, rely=0.6, anchor=tk.CENTER)
-
-        # Gridリセット
-        for w in self.keypad_frame.winfo_children():
-            w.destroy()
-
-        for r, row in enumerate(layout_data):
-            for c, item in enumerate(row):
-                if item:
-                    text = f"[{item['key'].upper()}]\n{item['num']}"
-                    lbl = tk.Label(self.keypad_frame, text=text, font=("Consolas", 18, "bold"),
-                                   width=6, height=2, bg="white", relief="raised", bd=2)
-                    lbl.grid(row=r, column=c, padx=4, pady=4)
+    def update_background(self, frame, face_result=None):
+        if face_result:
+            self._state_data["face_result"] = face_result
+        self.render_frame(frame, self._state_data)
 
     def destroy(self):
         try:
-            self.main_frame.destroy()
-            self.camera_frame.destroy()
-        except:
+            self.canvas.destroy()
+        except Exception:
             pass
