@@ -1,9 +1,5 @@
 # Python
 __pycache__/
-ai/__pycache__/
-core/__pycache__/
-ui/__pycache__/
-vision/__pycache__/
 .mypy_cache/
 # Virtual Environment
 .venv/
