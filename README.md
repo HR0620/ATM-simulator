@@ -32,7 +32,7 @@
 本システムを実行するためには、Python環境のセットアップが必要です。依存関係の競合を防ぐため、**以下の手順を必ず順番通りに実行してください**。
 
 ### 1.python 3.10のインストール
-(ここから)[https://www.python.org/downloads/]python 3.10をインストールしてください。
+[ここから](https://www.python.org/downloads/)python 3.10をインストールしてください。
 
 ### 2. numpyのインストール（重要）
 TensorFlowとの互換性を保つため、まず `numpy` のバージョンを指定してインストールします。**必ず `requirements.txt` の前に実行してください。**

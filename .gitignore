@@ -1,15 +1,13 @@
 # Python
-__pycache__/
-
-
+ai/__pycache__/
+core/__pycache__/
+ui/__pycache__/
+vision/__pycache__/
 # Virtual Environment
 .venv/
 
-# modelディレクトリはアプリ動作に必須のため除外しない
-
-# テストキャッシュ（テストコード自体は除外しない）
-.pytest_cache/
-# mypy
-.mypy_cache/
-
+# Editor/IDE
 .vscode/
+
+# Project Data (Dynamic/Private)
+data/

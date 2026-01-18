@@ -20,6 +20,14 @@ class AccountManager:
             self.salt = config["security"].get("pin_salt", "default_salt")
             self.max_amount = config["security"].get("max_amount", 999999)
 
+        # データディレクトリの作成を保証
+        data_dir = os.path.dirname(self.DATA_FILE)
+        if data_dir and not os.path.exists(data_dir):
+            try:
+                os.makedirs(data_dir)
+            except OSError as e:
+                print(f"ディレクトリ作成エラー: {e}")
+
         self.load_data()
 
     def load_data(self):

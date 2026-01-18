@@ -103,7 +103,7 @@ class FaceAlignmentState(State):
 
             self.controller.ui.render_frame(frame, {
                 "mode": "face_align",
-                "header": "本人確認",
+                "header": "顔検出",
                 "face_result": (status, guide_box, face_rect),
                 "debug_info": debug_info,
             })
@@ -173,7 +173,7 @@ class MenuState(State):
             "mode": "menu",
             "header": "メインメニュー",
             "buttons": [
-                {"zone": "left", "label": "振込"},
+                {"zone": "left", "label": "振り込み"},
                 {"zone": "center", "label": "引き出し"},
                 {"zone": "right", "label": "口座作成"},
             ],
@@ -241,8 +241,8 @@ class TransferTargetInputState(BaseInputState):
     """振込先口座番号入力"""
     INPUT_MAX = 6
     ALIGN_RIGHT = False
-    HEADER = "振込先指定"
-    MESSAGE = "振込先の口座番号 (6桁)"
+    HEADER = "振込先口座番号"
+    MESSAGE = "振込先の口座番号を入力してください"
 
     def _on_input_complete(self, value):
         if len(value) == 6:
@@ -316,13 +316,13 @@ class ConfirmationState(State):
         if txn == "transfer":
             target = ctx.get("target_account")
             amt = ctx.get("amount")
-            return f"口座番号: {target}\n振込金額: {amt}円\n\nよろしいですか？"
+            return f"口座番号 : {target}\n振込金額: {amt}円\n\nよろしいですか？"
         elif txn == "withdraw":
             amt = ctx.get("amount")
-            return f"引出金額: {amt}円\n\nよろしいですか？"
+            return f"引出金額 : {amt}円\n\nよろしいですか？"
         elif txn == "create_account":
             name = ctx.get("name")
-            return f"お名前: {name}\n\nこの内容で作成しますか？"
+            return f"お名前 : {name}\n\nこの内容で作成しますか？"
         return ""
 
     def _execute_transaction(self):
@@ -356,7 +356,7 @@ class ConfirmationState(State):
             pin = ctx.get("pin")
             new_acct = am.create_account(name, pin, initial_balance=1000)
             msg = f"口座を作成しました。\n\n" \
-                  f"口座番号: {new_acct}\n\nメモしてください！"
+                  f"口座番号 : {new_acct}\n\n"
             is_account_created = True
 
         ctx["result_message"] = msg
@@ -374,7 +374,7 @@ class WithdrawAccountInputState(BaseInputState):
     INPUT_MAX = 6
     ALIGN_RIGHT = False
     HEADER = "お引き出し"
-    MESSAGE = "口座番号を入力 (6桁)"
+    MESSAGE = "口座番号を入力してください"
 
     def _on_input_complete(self, value):
         if len(value) == 6:
@@ -400,9 +400,9 @@ class PinInputState(State):
 
         if txn == "create_account":
             if step == 1:
-                return "暗証番号を入力 (初回)"
+                return "暗証番号を入力してください"
             else:
-                return "確認のためもう一度入力 (2回目)"
+                return "確認のためもう一度入力してください"
         return "暗証番号を入力してください"
 
     def _on_click(self, zone):
@@ -463,7 +463,7 @@ class PinInputState(State):
                 ctx["pin_step"] = 2
                 self.input_buffer.clear()
                 self.controller.pin_pad.reset_random_mapping()
-                self._message = "確認のためもう一度入力 (2回目)"
+                self._message = "確認のためもう一度入力してください"
 
             elif step == 2:
                 first = ctx.get("first_pin")
@@ -474,7 +474,7 @@ class PinInputState(State):
                     ctx["pin_step"] = 1
                     self.input_buffer.clear()
                     self.controller.pin_pad.reset_random_mapping()
-                    self._message = "一致しません。最初から入力 (初回)"
+                    self._message = "一致しません。最初から入力してください"
 
 
 # =============================================================================
@@ -500,7 +500,7 @@ class CreateAccountNameInputState(State):
         self.controller.ui.render_frame(frame, {
             "mode": "input",
             "header": "新規口座作成",
-            "message": "お名前を入力 (キーボード)",
+            "message": "お名前を入力してください",
             "input_value": self.name_buffer,
             "input_max": 10,
             "align_right": False,
