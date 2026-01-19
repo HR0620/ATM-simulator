@@ -98,6 +98,7 @@ python main.py
 ├── model/              # Teachable Machineのデータ
 ├── tests/              # テスト
 ├── ui/                 # UI描画 (screens.py)
-├── main.py             # エントリーポイント
+├── main.py             # main.py
+├── requirements.txt    # 使用ライブラリ
 └── README.md           # 本ドキュメント
 ```
