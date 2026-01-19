@@ -32,17 +32,20 @@
 本システムを実行するためには、Python環境のセットアップが必要です。依存関係の競合を防ぐため、**以下の手順を必ず順番通りに実行してください**。
 
 ### 1.python 3.10のインストール
-[ここから](https://www.python.org/downloads/)python 3.10をインストールしてください。
+[ここから] (https://www.python.org/downloads/) Numpy1.26.4を使うために、必ずpython 3.10をインストールしてください。
 
-### 2. numpyのインストール（重要）
-TensorFlowとの互換性を保つため、まず `numpy` のバージョンを指定してインストールします。**必ず `requirements.txt` の前に実行してください。**
+### 2. 仮想環境の構築
 
 ```bash
-pip install "numpy==1.26.4"
+python -m venv .venv
 ```
 
-### 3. その他のライブラリのインストール
-残りの依存ライブラリを一括でインストールします。
+```bash
+.venv/Scripts/Activate.ps1
+```
+
+### 3. ライブラリのインストール
+依存ライブラリを一括でインストールします。
 
 ```bash
 pip install -r requirements.txt
