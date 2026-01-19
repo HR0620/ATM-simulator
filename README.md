@@ -51,6 +51,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+インストールが完了すると、以下のようなエラーメッセージが出るかもしれませんが気にしなくて良いです。
+
+```bash
+WARNING: There was an error checking the latest version of pip.
+```
+
 ### 4. アプリケーションの実行
 以下のコマンドでシミュレーターを起動します。
 
