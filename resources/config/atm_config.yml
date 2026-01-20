@@ -11,7 +11,7 @@ model:
 ui:
   window_width: 1024               # アプリウィンドウの幅
   window_height: 768               # アプリウィンドウの高さ
-  title: "AI非接触ATMシミュレーター"   # ウィンドウタイトル
+  title: "AI-based Touchless Mimic(ATM)"   # ウィンドウタイトル
   debug_mode: false                 # デバッグパネルの表示 (本番は false 推奨)
 
 face_guide:
@@ -24,7 +24,7 @@ face_guide:
 
 gesture:
   confidence_threshold: 0.85       # AIの確信度しきい値
-  required_frames: 5               # ジェスチャー確定に必要な連続フレーム数
+  required_frames: 7               # ジェスチャー確定に必要な連続フレーム数
   free_class_name: "free"          # 「何もしていない」を表すクラス名
   use_ema: true                    # 指数移動平均(EMA)による平滑化を使用するか
   ema_alpha: 0.4                   # EMAの平滑化係数 (0.0 < alpha <= 1.0)

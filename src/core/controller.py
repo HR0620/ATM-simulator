@@ -110,6 +110,7 @@ class ATMController:
         # Context
         self.shared_context = {}
         self.last_key_event = None
+        self.is_exiting = False
 
         # State Machine
         self.state_machine = StateMachine(self, FaceAlignmentState)
@@ -134,6 +135,10 @@ class ATMController:
     def play_sound(self, filename):
         """音声再生"""
         if not pygame.mixer.get_init():
+            return
+
+        # 終了シーケンス中は come-again 以外の音声を無視する
+        if getattr(self, "is_exiting", False) and filename != "come-again":
             return
 
         base_filename = os.path.join("assets", "sounds", filename)
@@ -203,6 +208,10 @@ class ATMController:
 
     def on_close(self):
         """App Exit"""
+        if getattr(self, "is_exiting", False):
+            return
+
+        self.is_exiting = True
         print("Exiting application...")
         try:
             self.play_sound("come-again")

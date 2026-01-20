@@ -1,4 +1,11 @@
-# AI非接触ATMシミュレーター
+# AI-based Touchless Mimic
+>AI-based Touchless Mimic(ATM)は、画像認識技術を活用して、タッチに対応していないディスプレイでもタッチを可能にした次世代ATMです。
+
+![アイコン](docs/images/icon.png)
+
+[![Python Version](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Since](https://img.shields.io/badge/since-2025.12-blue)]()
 
 ## 制作時期
 2025年12月～2026年1月
@@ -16,98 +23,102 @@
 ## 必要動作環境
 *   **Python 3.10** (必須)
 *   Webカメラ
-*   Windows 推奨（Linux,macOS では確認していません。）
+*   Windows 推奨（Linux, macOS では動作確認していません。）
 
 ## 使用ライブラリ
-*   tensorflow
-*   opencv-python
+*   tensorflow == 2.15.0
+*   opencv-python == 4.9.0.80
+*   numpy == 1.26.4
 *   pillow
 *   pygame
 *   pyyaml
-*   numpy
 *   h5py
-*   PyInstaller (ビルド用)
 
 ## セットアップと実行方法
+### **方法1**
+本システムを実行するためには、Python 3.10の環境が必要です。
 
-本システムを実行するためには、Python環境のセットアップが必要です。依存関係の競合を防ぐため、**以下の手順を必ず順番通りに実行してください**。
-
-### 1.python 3.10のインストール
-[ここから](https://www.python.org/downloads/) Numpy1.26.4を使うために、必ずpython 3.10をインストールしてください。
-
-### 2. 仮想環境の構築
+### 1. 仮想環境の構築
 
 ```bash
 python -m venv .venv
 ```
 
 ```bash
+# Windows (PowerShell) の場合
 .venv/Scripts/Activate.ps1
 ```
 
-### 3. ライブラリのインストール
+### 2. ライブラリのインストール
 依存ライブラリを一括でインストールします。
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. アプリケーションの実行 (開発モード)
+### 3. アプリケーションの実行
 以下のコマンドでシミュレーターを起動します。
 
 ```bash
 python run.py
 ```
 
-## exeファイルのビルド
-以下のコマンドを実行すると、`dist/ATM_Simulator` フォルダに実行可能ファイルが生成されます。
-
-```bash
-python scripts/clean_and_build.py
-```
-
-- 生成された `ATM_Simulator.exe` は、Python環境がないPCでも動作します。
-- `resources/` フォルダの設定やモデルを編集することで、再ビルドなしで挙動を変更可能です。
-
+### **方法2**
+Releaseから
 ## スクリーンショット
 
-### 1. 待機画面・顔検出
+## 待機画面・顔検出
 ユーザーがカメラの前に立つと自動的に顔を検出します。
-![顔検出](doc/images/face_align.png)
+![顔検出](docs/images/face_align.png)
 
-### 2. メインメニュー
+### メインメニュー
 ジェスチャー操作で「振り込み」「引き出し」「口座作成」を選択します。
-![メインメニュー](doc/images/menu.png)
+![メインメニュー](docs/images/menu.png)
 
-### 3. 暗証番号入力
-キーボードを使用して金額を入力します。
-![暗証番号入力](doc/images/pin.png)
+###  暗証番号入力
+キーボードを使用して暗証番号を入力します。
+![暗証番号入力](docs/images/pin.png)
 
-### 4. 確認画面
+### 確認画面
 取引内容を確認し、ジェスチャーで確定します。
-![確認画面](doc/images/confirm.png)
+![確認画面](docs/images/confirm.png)
 
-### 5. 取引完了
+### 取引完了
 処理結果が表示され、音声ガイダンスと共に終了します。
-![完了画面](doc/images/result.png)
+![完了画面](docs/images/result.png)
 
 ## ディレクトリ構成
 ```
 .
-├── dist/               # ビルド生成物 (exe)
-├── resources/          # 外部リソース (config, assets, model)
-│   ├── assets/         # 画像・音声
-│   ├── config/         # 設定 (atm_config.yml)
-│   └── model/          # AIモデル
-├── scripts/            # ビルド・ユーティリティスクリプト
 ├── src/                # ソースコード
-│   ├── ai/             # AIロジック
-│   ├── core/           # アプリ制御・状態管理
-│   ├── ui/             # 画面描画
-│   ├── vision/         # カメラ処理
+│   ├── ai/             # AIロジック（モデルロード・推論）
+│   ├── core/           # アプリ制御（コントローラー・状態管理）
+│   ├── ui/             # 画面描画（Tkinter）
+│   ├── vision/         # カメラ処理（OpenCV）
 │   └── main.py         # アプリ本体
-├── doc/                # ドキュメント用画像
-├── run.py              # 開発用実行スクリプト
-├── requirements.txt    # 依存ライブラリ
-└── README.md           # 本ファイル
+├── resources/          # 外部リソース（ビルド時コピー対象）
+│   ├── assets/         # 画像・音声
+│   ├── config/         # 設定 (atm_config.yml, 顔検出用XML)
+│   ├── model/          # AIモデル
+│   └── icon.ico        # アプリアイコン
+├── scripts/            # ビルド用スクリプト (clean_and_build.py 等)
+├── docs/               # ドキュメント用画像など
+├── data/               # 運用データ（口座情報等 / gitignore対象）
+├── tools/              # 開発補助・デバッグツール
+├── run.py              # 開発用実行エントリ
+├── requirements.txt    # 依存ライブラリ一覧
+├── pyproject.toml      # プロジェクト定義
+└── README.md           # 本ドキュメント
 ```
+
+### 問題について
+
+[Issues](https://github.com/HR0620/ATM-simulator/issues) で質問・報告してください。
+
+## ライセンス
+
+MIT ライセンス - 詳細は [LICENSE](LICENSE) を参照してください。
+
+---
+
+Made by [HR0620](https://github.com/HR0620)

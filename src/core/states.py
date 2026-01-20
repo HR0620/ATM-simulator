@@ -246,6 +246,22 @@ class TransferTargetInputState(BaseInputState):
 
     def _on_input_complete(self, value):
         if len(value) == 6:
+            am = self.controller.account_manager
+
+            # 口座存在チェック
+            if am.get_account_name(value) is None:
+                self.controller.shared_context["is_error"] = True
+                self.controller.shared_context["result_message"] = "口座が存在しません"
+                self.controller.change_state(ResultState)
+                return
+
+            # 口座凍結チェック
+            if am.is_frozen(value):
+                self.controller.shared_context["is_error"] = True
+                self.controller.shared_context["result_message"] = "該当口座は凍結されています"
+                self.controller.change_state(ResultState)
+                return
+
             self.controller.shared_context["target_account"] = value
             self.controller.change_state(GenericAmountInputState)
 
@@ -260,7 +276,11 @@ class GenericAmountInputState(BaseInputState):
 
     def on_enter(self, prev_state=None):
         super().on_enter(prev_state)
-        self.controller.play_sound("pay-money")
+        txn = self.controller.shared_context.get("transaction")
+        if txn == "withdraw":
+            self.controller.play_sound("please-select")
+        else:
+            self.controller.play_sound("pay-money")
 
     def _on_input_complete(self, value):
         if len(value) >= 1:
@@ -341,15 +361,11 @@ class ConfirmationState(State):
             is_error = not success
 
         elif txn == "withdraw":
+            # 暗証番号の検証は PinInputState で既に行われている
             acct = ctx.get("account_number")
-            pin = ctx.get("pin")
-            if not am.verify_pin(acct, pin):
-                msg = "口座番号または暗証番号が\n間違っています。"
-                is_error = True
-            else:
-                amt = ctx.get("amount")
-                success, msg = am.withdraw(acct, amt)
-                is_error = not success
+            amt = ctx.get("amount")
+            success, msg = am.withdraw(acct, amt)
+            is_error = not success
 
         elif txn == "create_account":
             name = ctx.get("name")
@@ -378,6 +394,22 @@ class WithdrawAccountInputState(BaseInputState):
 
     def _on_input_complete(self, value):
         if len(value) == 6:
+            am = self.controller.account_manager
+
+            # 口座存在チェック
+            if am.get_account_name(value) is None:
+                self.controller.shared_context["is_error"] = True
+                self.controller.shared_context["result_message"] = "口座が存在しません"
+                self.controller.change_state(ResultState)
+                return
+
+            # 口座凍結チェック
+            if am.is_frozen(value):
+                self.controller.shared_context["is_error"] = True
+                self.controller.shared_context["result_message"] = "該当口座は凍結されています"
+                self.controller.change_state(ResultState)
+                return
+
             self.controller.shared_context["account_number"] = value
             self.controller.change_state(PinInputState)
 
@@ -450,10 +482,36 @@ class PinInputState(State):
     def _on_pin_entered(self, pin):
         txn = self.controller.shared_context.get("transaction")
         ctx = self.controller.shared_context
+        am = self.controller.account_manager
 
         if txn == "withdraw":
-            ctx["pin"] = pin
-            self.controller.change_state(GenericAmountInputState)
+            acct = ctx.get("account_number")
+            success, info = am.verify_pin(acct, pin)
+
+            if success:
+                ctx["pin"] = pin
+                self.controller.change_state(GenericAmountInputState)
+            else:
+                if info == -1:  # 凍結
+                    ctx["is_error"] = True
+                    ctx["result_message"] = "試行回数を超えたため\n口座を凍結しました。"
+                    self.controller.play_sound("come-again")
+                    self.controller.change_state(ResultState)
+                elif info == -2:  # 存在しない（通常はここに来る前にチェック済み）
+                    ctx["is_error"] = True
+                    ctx["result_message"] = "口座が存在しません"
+                    self.controller.change_state(ResultState)
+                else:
+                    self.controller.play_sound("cancel")
+                    self.input_buffer.clear()
+                    self.controller.pin_pad.reset_random_mapping()
+                    self._message = f"暗証番号が違います\n(残り {info} 回)"
+
+                    if info <= 0:
+                        ctx["is_error"] = True
+                        ctx["result_message"] = "試行回数を超えたため\n口座を凍結しました。"
+                        self.controller.play_sound("come-again")
+                        self.controller.change_state(ResultState)
 
         elif txn == "create_account":
             step = ctx.get("pin_step", 1)
@@ -474,6 +532,7 @@ class PinInputState(State):
                     ctx["pin_step"] = 1
                     self.input_buffer.clear()
                     self.controller.pin_pad.reset_random_mapping()
+                    self.controller.play_sound("cancel")
                     self._message = "一致しません。最初から入力してください"
 
 
