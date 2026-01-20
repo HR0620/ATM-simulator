@@ -11,8 +11,6 @@ __pycache__/
 # Project Data (Dynamic/Private)
 data/
 
-clean_and_build.py
-
 dist/
 
 build/
