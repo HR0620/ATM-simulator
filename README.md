@@ -26,6 +26,7 @@
 *   pyyaml
 *   numpy
 *   h5py
+*   PyInstaller (ビルド用)
 
 ## セットアップと実行方法
 
@@ -51,18 +52,22 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-インストールが完了すると、以下のようなエラーメッセージが出るかもしれませんが気にしなくて良いです。
-
-```bash
-WARNING: There was an error checking the latest version of pip.
-```
-
-### 4. アプリケーションの実行
+### 4. アプリケーションの実行 (開発モード)
 以下のコマンドでシミュレーターを起動します。
 
 ```bash
-python main.py
+python run.py
 ```
+
+## exeファイルのビルド
+以下のコマンドを実行すると、`dist/ATM_Simulator` フォルダに実行可能ファイルが生成されます。
+
+```bash
+python scripts/clean_and_build.py
+```
+
+- 生成された `ATM_Simulator.exe` は、Python環境がないPCでも動作します。
+- `resources/` フォルダの設定やモデルを編集することで、再ビルドなしで挙動を変更可能です。
 
 ## スクリーンショット
 
@@ -89,16 +94,20 @@ python main.py
 ## ディレクトリ構成
 ```
 .
-├── ai/                 # AIモデル関連 (model_loader.py)
-├── assets/             # 画像・音声リソース
-├── config/             # 設定ファイル (atm_config.yml)
-├── core/               # アプリケーションロジック (controller, states...)
-├── data/               # 口座情報
-├── doc/                # README用データ
-├── model/              # Teachable Machineのデータ
-├── tests/              # テスト
-├── ui/                 # UI描画 (screens.py)
-├── main.py             # main.py
-├── requirements.txt    # 使用ライブラリ
-└── README.md           # 本ドキュメント
+├── dist/               # ビルド生成物 (exe)
+├── resources/          # 外部リソース (config, assets, model)
+│   ├── assets/         # 画像・音声
+│   ├── config/         # 設定 (atm_config.yml)
+│   └── model/          # AIモデル
+├── scripts/            # ビルド・ユーティリティスクリプト
+├── src/                # ソースコード
+│   ├── ai/             # AIロジック
+│   ├── core/           # アプリ制御・状態管理
+│   ├── ui/             # 画面描画
+│   ├── vision/         # カメラ処理
+│   └── main.py         # アプリ本体
+├── doc/                # ドキュメント用画像
+├── run.py              # 開発用実行スクリプト
+├── requirements.txt    # 依存ライブラリ
+└── README.md           # 本ファイル
 ```

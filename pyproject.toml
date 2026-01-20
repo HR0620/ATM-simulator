@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atm-simulator"
+version = "1.0.0"
+description = "AI Non-Contact ATM Simulator using Gesture Recognition"
+authors = [
+    {name = "Harada Renju", email = "hrenju.works@gmail.com"},
+]
+requires-python = "==3.10"
+dependencies = [
+    "opencv-python==4.9.0.80",
+    "numpy==1.26.4",
+    "tensorflow==2.15.0",
+    "Pillow==10.2.0",
+    "PyYAML==6.0.1",
+    "h5py==3.10.0",
+    "pygame==2.5.2"
+]
+
+[project.scripts]
+atm-simulator-dev = "src.main:main"
