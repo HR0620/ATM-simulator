@@ -34,37 +34,30 @@
 *   pyyaml
 *   h5py
 
-## セットアップと実行方法
-### **方法1**
-本システムを実行するためには、Python 3.10の環境が必要です。
+## インストール
 
-### 1. 仮想環境の構築
+### バイナリダウンロード（推奨）
 
+最新版: [Releases](https://github.com/HR0620/ATM-simulator/releases/latest)
+
+<details>
+<summary><b>Windows</b></summary>
+
+[Releasesページ](https://github.com/HR0620/ATM-simulator/releases/latest)から `ATM-simulator.zip` をダウンロードし、解凍して実行してください。
+
+> **注意**: Windows Defenderの警告が出る場合は「詳細情報」→「実行」をクリック
+</details>
+
+### ソースからビルド
 ```bash
-python -m venv .venv
-```
-
-```bash
-# Windows (PowerShell) の場合
-.venv/Scripts/Activate.ps1
-```
-
-### 2. ライブラリのインストール
-依存ライブラリを一括でインストールします。
-
-```bash
+git clone https://github.com/HR0620/ATM-simulator.git
+cd ATM-simulator
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 3. アプリケーションの実行
-以下のコマンドでシミュレーターを起動します。
-
-```bash
 python run.py
 ```
 
-### **方法2**
-Releaseから
 ## スクリーンショット
 
 ## 待機画面・顔検出

@@ -33,14 +33,12 @@ def main():
     MAIN_SCRIPT = SRC_DIR / "main.py"
     ICON_PATH = RESOURCES_DIR / "icon.ico"
 
-    # 0. Generate Icon if missing
+    # 0. Check Icon
     print_step("Checking Icon")
     if not ICON_PATH.exists():
-        print("Icon not found. Generating default icon...")
-        # Use subprocess to run generate_icon.py to avoid state issues
-        subprocess.check_call([sys.executable, str(SCRIPT_DIR / "generate_icon.py")])
+        print(f"⚠ Warning: Icon not found at {ICON_PATH}. Using default PyInstaller icon.")
     else:
-        print("✓ Icon exists")
+        print(f"✓ Icon found at {ICON_PATH}")
 
     # 0.1 Ensure Haar Cascade XML is in resources
     print_step("Ensuring Haar Cascade XML")
