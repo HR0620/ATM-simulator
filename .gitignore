@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+
 .mypy_cache/
 # Virtual Environment
 .venv/
@@ -14,4 +15,12 @@ clean_and_build.py
 
 dist/
 
-ATM_Simulator.spec
+build/
+
+*.spec
+
+*.log
+
+boot_log.txt
+
+error_log.txt
