@@ -106,21 +106,40 @@ python run.py
 
 ## FAQ (よくある質問)
 
-**Q: ATM-Simulator.exe を実行すると Windows Defender などの警告が出るのですが？**
+<details>
+<summary>
+<b>
+Q: ATM-Simulator.exe を実行すると Windows Defender などの警告が出るのですが？
+</b>
+</summary>
 
 A: **「詳細情報」→「実行」** や、**「今回だけ許可」**　をクリックしてください．
+</details>
 
-
-**Q: このツールはWindowsで使えますか？**
-
+<details>
+<summary>
+<b>
+Q: このツールはWindowsで使えますか？
+</b>
+</summary>
 A: **Windows 11**では動作確認済みです。詳細は[インストール](#インストール)をご覧ください。
+</details>
 
-**Q: アプリの設定ファイルはどこにありますか？**
-
+<details>
+<summary>
+<b>
+Q: アプリの設定ファイルはどこにありますか？
+</b>
+</summary>
 A: `./resources/config` の中にございます。編集したい場合は `atm_config.yml` を編集してください。
+</details>
 
-**Q: 左のボタンをクリックしているのに、右のボタンが反応してしまいます。**
-
+<details>
+<summary>
+<b>
+Q: 左のボタンをクリックしているのに、右のボタンが反応してしまいます。
+</b>
+</summary>
 A: 背景に **薄橙色** のものがあると、誤認識してしまうことがあります。薄橙色のものを移動させたり違う場所で試すと改善する場合がございます。ユーザー様用にチューニングしたい場合は、以下の手順を試してみてください。
 
 1. [Teachable Machine](https://teachablemachine.withgoogle.com/) にアクセスし、「使ってみる」をクリック
@@ -133,6 +152,7 @@ A: 背景に **薄橙色** のものがあると、誤認識してしまうこ�
 6. 「**モデルをエクスポートする**」をクリックし、「**Tensorflow**」→「**モデルをダウンロード**」をクリック
 7. ダウンロードできたzipファイルを解凍し、中の「**keras_model.h5**」を「**resources/model**」に移動する
 8. 「**run.py**」を実行し、動作を確認する
+</details>
 
 ### その他の問題
 [Issues](https://github.com/HR0620/ATM-simulator/issues) で質問・報告してください。
