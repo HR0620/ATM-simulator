@@ -617,24 +617,31 @@ class ATMUI:
         cy = self.height // 2
         bg = "#cc0000" if is_error else "#004080"
 
-        # ボックスサイズを拡大（メッセージが長いため）
+        # メッセージ行数を計算してボックスの高さを調整
+        lines = message.count('\n') + 1
+        # カウントダウンも含める
+        if countdown > 0:
+            lines += 2  # カウントダウン用の空行とテキスト
+
+        box_w = 560
+        box_h = max(240, lines * 45 + 60)
+
+        # 背景ボックス
         self.canvas.create_rectangle(
-            cx - 280, cy - 120, cx + 280, cy + 120,
+            cx - box_w // 2, cy - box_h // 2, cx + box_w // 2, cy + box_h // 2,
             fill=bg, stipple="gray50",
             outline="#ffffff", width=3, tags="overlay"
         )
-        # メッセージ位置を少し上に
-        self.canvas.create_text(
-            cx, cy - 20, text=message, fill="white",
-            font=("Meiryo UI", 18, "bold"), tags="overlay"
-        )
 
+        # メッセージとカウントダウンをまとめて描画（中央揃え）
+        display_text = message
         if countdown > 0:
-            # カウントダウンをボックスの下方に配置
-            self.canvas.create_text(
-                cx, cy + 140, text=f"メニューへ戻る: {countdown}秒",
-                fill="white", font=("Meiryo UI", 16, "bold"), tags="overlay"
-            )
+            display_text += f"\n\nメニューへ戻る: {countdown}秒"
+
+        self.canvas.create_text(
+            cx, cy, text=display_text, fill="white",
+            font=("Meiryo UI", 18, "bold"), justify=tk.CENTER, tags="overlay"
+        )
 
     def _draw_face_align_overlay(self):
         """顔位置合わせ画面"""

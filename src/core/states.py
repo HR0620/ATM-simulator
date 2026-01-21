@@ -251,7 +251,9 @@ class TransferTargetInputState(BaseInputState):
             # 口座存在チェック
             if am.get_account_name(value) is None:
                 self.controller.shared_context["is_error"] = True
-                self.controller.shared_context["result_message"] = "口座が存在しません"
+                self.controller.shared_context["result_message"] = (
+                    "口座が存在しません"
+                )
                 self.controller.change_state(ResultState)
                 return
 
@@ -279,8 +281,13 @@ class GenericAmountInputState(BaseInputState):
         txn = self.controller.shared_context.get("transaction")
         if txn == "withdraw":
             self.controller.play_sound("please-select")
+            # 引出時は残高を表示
+            acct = self.controller.shared_context.get("account_number")
+            balance = self.controller.account_manager.get_balance(acct)
+            self.MESSAGE = f"金額を入力してください\n残高：{balance}円"
         else:
             self.controller.play_sound("pay-money")
+            self.MESSAGE = "金額を入力してください"
 
     def _on_input_complete(self, value):
         if len(value) >= 1:
@@ -365,6 +372,10 @@ class ConfirmationState(State):
             acct = ctx.get("account_number")
             amt = ctx.get("amount")
             success, msg = am.withdraw(acct, amt)
+            if success:
+                # 引き出し後の残高を表示
+                new_balance = am.get_balance(acct)
+                msg = f"引き出し完了\n引き出し後残高：{new_balance}円"
             is_error = not success
 
         elif txn == "create_account":
@@ -389,7 +400,7 @@ class WithdrawAccountInputState(BaseInputState):
     """口座番号入力"""
     INPUT_MAX = 6
     ALIGN_RIGHT = False
-    HEADER = "お引き出し"
+    HEADER = "引き出し"
     MESSAGE = "口座番号を入力してください"
 
     def _on_input_complete(self, value):
@@ -558,7 +569,7 @@ class CreateAccountNameInputState(State):
                current_direction=None, debug_info=None):
         self.controller.ui.render_frame(frame, {
             "mode": "input",
-            "header": "新規口座作成",
+            "header": "口座作成",
             "message": "お名前を入力してください",
             "input_value": self.name_buffer,
             "input_max": 10,

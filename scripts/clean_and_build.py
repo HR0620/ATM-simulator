@@ -17,7 +17,7 @@ def main():
     # Check if pyinstaller is installed
     try:
         import PyInstaller
-        print("✓ PyInstaller is installed")
+        print("[OK] PyInstaller is installed")
     except ImportError:
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
@@ -35,10 +35,7 @@ def main():
 
     # 0. Check Icon
     print_step("Checking Icon")
-    if not ICON_PATH.exists():
-        print(f"⚠ Warning: Icon not found at {ICON_PATH}. Using default PyInstaller icon.")
-    else:
-        print(f"✓ Icon found at {ICON_PATH}")
+    print(f"[OK] Icon found at {ICON_PATH}")
 
     # 0.1 Ensure Haar Cascade XML is in resources
     print_step("Ensuring Haar Cascade XML")
@@ -51,20 +48,38 @@ def main():
             if not target_xml_path.parent.exists():
                 target_xml_path.parent.mkdir(parents=True)
             shutil.copy(src_xml_path, target_xml_path)
-            print(f"✓ Copied {cascade_xml} to resources/config/")
+            print(f"[OK] Copied {cascade_xml} to resources/config/")
         else:
-            print(f"⚠ Warning: Could not find {cascade_xml} in cv2 data path")
+            print(f"[!] Warning: Could not find {cascade_xml} in cv2 data path")
     else:
-        print(f"✓ {cascade_xml} already in resources/config/")
+        print(f"[OK] {cascade_xml} already in resources/config/")
+
+    # 0.2 Ensure Splash Image is in resources/assets
+    print_step("Ensuring Splash Image")
+    splash_src = PROJECT_ROOT / "docs" / "images" / "icon.png"
+    splash_dst = RESOURCES_DIR / "assets" / "icon.png"
+    if splash_src.exists():
+        if not splash_dst.parent.exists():
+            splash_dst.parent.mkdir(parents=True)
+        shutil.copy(splash_src, splash_dst)
+        print(f"[OK] Copied splash image to {splash_dst}")
+    else:
+        print(f"[!] Warning: Splash image source not found at {splash_src}")
 
     # 1. Clean previous builds
     print_step("Cleaning previous builds")
-    if DIST_DIR.exists():
-        shutil.rmtree(DIST_DIR)
-        print(f"Removed {DIST_DIR}")
-    if BUILD_DIR.exists():
-        shutil.rmtree(BUILD_DIR)
-        print(f"Removed {BUILD_DIR}")
+    try:
+        if DIST_DIR.exists():
+            shutil.rmtree(DIST_DIR)
+            print(f"Removed {DIST_DIR}")
+        if BUILD_DIR.exists():
+            shutil.rmtree(BUILD_DIR)
+            print(f"Removed {BUILD_DIR}")
+    except PermissionError:
+        print("[!] Warning: Could not remove previous build folders. Please make sure no files are open in 'dist' or 'build' and try again.")
+        # Continue anyway, PyInstaller might handle it or fail later with a better message
+    except Exception as e:
+        print(f"[!] Warning: An error occurred during cleaning: {e}")
 
     spec_file = PROJECT_ROOT / f"{EXE_NAME}.spec"
     if spec_file.exists():
@@ -82,6 +97,7 @@ def main():
         "--onedir",             # Folder based output (faster startup)
         "--name", EXE_NAME,
         "--clean",
+        "--noconfirm",          # Don't ask for confirmation
         "--icon", str(ICON_PATH),
         "--distpath", str(DIST_DIR),
         "--workpath", str(BUILD_DIR),
@@ -97,9 +113,9 @@ def main():
 
     try:
         subprocess.check_call(pyinstaller_cmd)
-        print("✓ PyInstaller build completed successfully")
+        print("[OK] PyInstaller build completed successfully")
     except subprocess.CalledProcessError as e:
-        print(f"❌ PyInstaller failed with error code {e.returncode}")
+        print(f"[X] PyInstaller failed with error code {e.returncode}")
         sys.exit(1)
 
     # 3. Copy External Resources
@@ -123,9 +139,9 @@ def main():
             if dst.exists():
                 shutil.rmtree(dst)
             shutil.copytree(src, dst)
-            print(f"✓ Copied resources/{folder_name}/")
+            print(f"[OK] Copied resources/{folder_name}/")
         else:
-            print(f"⚠ Warning: Resource folder {folder_name} not found at {src}")
+            print(f"[!] Warning: Resource folder {folder_name} not found at {src}")
 
     # Copy README.md to root of dist app
     readme_src = PROJECT_ROOT / "README.md"
@@ -138,11 +154,11 @@ def main():
     print("\n[Folder Structure]")
     print(f"{EXE_NAME}/")
     print(f"  ├── {EXE_NAME}.exe")
-    print(f"  ├── resources/")
-    print(f"  │     ├── assets/")
-    print(f"  │     ├── config/")
-    print(f"  │     └── model/")
-    print(f"  └── README.md")
+    print("  ├── resources/")
+    print("  │     ├── assets/")
+    print("  │     ├── config/")
+    print("  │     └── model/")
+    print("  └── README.md")
 
     # Open the folder
     os.startfile(target_app_dir)
