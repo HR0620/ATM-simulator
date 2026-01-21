@@ -22,8 +22,9 @@
 
 ## 必要動作環境
 *   **Python 3.10** (必須)
-*   Webカメラ
-*   Windows 推奨（Linux, macOS では動作確認していません。）
+*   **Webカメラ**
+*   **Windows 11** 推奨（他のバージョンのWindowsやLinux, macOS では動作確認していません。）
+*   **3GB** 以上の空き容量
 
 ## 使用ライブラリ
 *   tensorflow == 2.15.0
@@ -58,9 +59,9 @@ pip install -r requirements.txt
 python run.py
 ```
 
-## スクリーンショット
+## 動作デモ
 
-## 待機画面・顔検出
+### 待機画面・顔検出
 ユーザーがカメラの前に立つと自動的に顔を検出します。
 ![顔検出](docs/images/face_align.png)
 
@@ -101,11 +102,39 @@ python run.py
 ├── run.py              # 開発用実行エントリ
 ├── requirements.txt    # 依存ライブラリ一覧
 ├── pyproject.toml      # プロジェクト定義
-└── README.md           # 本ドキュメント
 ```
 
-### 問題について
+## FAQ (よくある質問)
 
+**Q: ATM-Simulator.exe を実行すると Windows Defender などの警告が出るのですが？**
+
+A: **「詳細情報」→「実行」** や、**「今回だけ許可」**　をクリックしてください．
+
+
+**Q: このツールはWindowsで使えますか？**
+
+A: **Windows 11**では動作確認済みです。詳細は[インストール](#インストール)をご覧ください。
+
+**Q: アプリの設定ファイルはどこにありますか？**
+
+A: `./resources/config` の中にございます。編集したい場合は `atm_config.yml` を編集してください。
+
+**Q: 左のボタンをクリックしているのに、右のボタンが反応してしまいます。**
+
+A: 背景に **薄橙色** のものがあると、誤認識してしまうことがあります。薄橙色のものを移動させたり違う場所で試すと改善する場合がございます。ユーザー様用にチューニングしたい場合は、以下の手順を試してみてください。
+
+1. [Teachable Machine](https://teachablemachine.withgoogle.com/) にアクセスし、「使ってみる」をクリック
+2. 「画像プロジェクト」→「標準画像モデル」を選択
+3. 「**Class 1**」「**Class 2**」「**Class 3**」「**Class 4**」にそれぞれ「**left**」「**center**」「**right**」「**free**」と名前を付ける
+4. それぞれにジェスチャーを割り当てる(「free」には「left」「center」「right」に当てはまらないジェスチャーを割り当てる)
+   
+   ![teachable machine](docs/images/train.png)
+5. 「**トレーニング**」をクリックし、プレビューで動作を確認する。
+6. 「**モデルをエクスポートする**」をクリックし、「**Tensorflow**」→「**モデルをダウンロード**」をクリック
+7. ダウンロードできたzipファイルを解凍し、中の「**keras_model.h5**」を「**resources/model**」に移動する
+8. 「**run.py**」を実行し、動作を確認する
+
+### その他の問題
 [Issues](https://github.com/HR0620/ATM-simulator/issues) で質問・報告してください。
 
 ## ライセンス
