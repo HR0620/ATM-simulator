@@ -11,7 +11,7 @@ model:
 ui:
   window_width: 1024               # アプリウィンドウの幅
   window_height: 768               # アプリウィンドウの高さ
-  title: "AI-based Touchless Mimic(ATM)"   # ウィンドウタイトル
+  title: "AI-based Touchless Mimic (ATM)"   # ウィンドウタイトル
   debug_mode: false                 # デバッグパネルの表示 (本番は false 推奨)
 
 face_guide:
@@ -32,7 +32,7 @@ gesture:
 security:
   pin_salt: "CHANGE_THIS_IN_PRODUCTION" # PINハッシュ用ソルト
   max_amount: 9999999                   # 取引金額上限
-  max_pin_trials: 3                     # PIN試行回数上限（未実装）
+  max_pin_trials: 3                     # PIN試行回数上限
 
 logging:
   level: "INFO"                    # ログレベル (DEBUG, INFO, WARNING, ERROR)

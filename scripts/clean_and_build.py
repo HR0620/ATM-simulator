@@ -29,7 +29,7 @@ def main():
     RESOURCES_DIR = PROJECT_ROOT / "resources"
     DIST_DIR = PROJECT_ROOT / "dist"
     BUILD_DIR = PROJECT_ROOT / "build"
-    EXE_NAME = "ATM_Simulator"
+    EXE_NAME = "AI-based Touchless Machine (ATM)"
     MAIN_SCRIPT = SRC_DIR / "main.py"
     ICON_PATH = RESOURCES_DIR / "icon.ico"
 

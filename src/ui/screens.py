@@ -1,5 +1,5 @@
 """
-ATM UI モジュール (リファクタリング版)
+ATM UI モジュール
 
 設計意図:
 - レイアウト定数を明示的に定義
@@ -9,6 +9,7 @@ ATM UI モジュール (リファクタリング版)
 import tkinter as tk
 from PIL import Image, ImageTk
 import cv2
+from src.ui.styles import Colors, Fonts, Layout as StyleLayout
 
 
 class Layout:
@@ -41,6 +42,10 @@ class ATMUI:
         self.canvas.bind("<Button-1>", self._on_click)
         self._click_callback = None
         self._photo = None
+
+        # クリックフィードバック用
+        self._clicked_zone = None
+        self._click_feedback_timer = None
 
         # レイアウト計算
         self._calculate_layout()
@@ -114,17 +119,41 @@ class ATMUI:
         if x > self.main_width:
             return
 
+        clicked_zone = None
+        clicked_type = None  # "button" or "guide"
+
         for zone_name, zone in self.button_zones.items():
             if (zone["x1"] <= x <= zone["x2"] and
                     zone["y1"] <= y <= zone["y2"]):
-                self._click_callback(zone_name)
-                return
+                clicked_zone = zone_name
+                clicked_type = "button"
+                break
 
-        for zone_name, zone in self.guide_zones.items():
-            if (zone["x1"] <= x <= zone["x2"] and
-                    zone["y1"] <= y <= zone["y2"]):
-                self._click_callback(zone_name)
-                return
+        if clicked_zone is None:
+            for zone_name, zone in self.guide_zones.items():
+                if (zone["x1"] <= x <= zone["x2"] and
+                        zone["y1"] <= y <= zone["y2"]):
+                    clicked_zone = zone_name
+                    clicked_type = "guide"
+                    break
+
+        if clicked_zone is not None:
+            # クリックフィードバック: 押下状態を設定
+            self._clicked_zone = (clicked_zone, clicked_type)
+
+            # 既存のタイマーをキャンセル
+            if self._click_feedback_timer:
+                self.root.after_cancel(self._click_feedback_timer)
+
+            # 150ms後にコールバックを実行してフィードバックをクリア
+            callback = self._click_callback  # キャプチャ
+
+            def execute_callback():
+                self._clicked_zone = None
+                if callback is not None:
+                    callback(clicked_zone)
+
+            self._click_feedback_timer = self.root.after(150, execute_callback)
 
     def render_frame(self, frame, state_data: dict = None):
         if state_data:
@@ -380,7 +409,7 @@ class ATMUI:
             self._draw_button_zone(btn, btn_progress)
 
     def _draw_button_zone(self, btn_data, progress=0):
-        """ボタン領域描画"""
+        """ボタン領域描画（押下エフェクト付き）"""
         zone_name = btn_data.get("zone")
         zone = self.button_zones.get(zone_name)
         if not zone:
@@ -389,42 +418,71 @@ class ATMUI:
         x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
         label = btn_data.get("label", "")
 
-        colors = {"left": "#005bb5", "center": "#f5f5f5", "right": "#e67e22"}
-        text_colors = {"left": "white", "center": "#333333", "right": "white"}
-        bg = colors.get(zone_name, "#ffffff")
-        fg = text_colors.get(zone_name, "#333333")
+        # 色設定（styles.pyから取得）
+        btn_colors = Colors.BUTTON.get(zone_name, Colors.BUTTON["center"])
+        bg = btn_colors["bg"]
+        fg = btn_colors["fg"]
+        pressed_bg = btn_colors["pressed"]
 
-        # ボタン背景
-        pad = 15
-        self.canvas.create_rectangle(
-            x1 + pad, y1 + pad, x2 - pad, y2 - pad,
-            fill=bg, stipple="gray50", outline="#ffffff", width=2, tags="overlay"
-        )
+        pad = StyleLayout.BUTTON_PADDING
+        shadow_offset = StyleLayout.SHADOW_OFFSET
+        press_offset = StyleLayout.PRESS_OFFSET
+
+        # 押下状態の判定（進捗が0.3以上、またはマウスクリック中で押下とみなす）
+        is_clicked = (self._clicked_zone is not None and
+                      self._clicked_zone[0] == zone_name and
+                      self._clicked_zone[1] == "button")
+        is_pressed = progress > 0.3 or is_clicked
+
+        # ボタン座標
+        bx1, by1, bx2, by2 = x1 + pad, y1 + pad, x2 - pad, y2 - pad
+
+        if is_pressed:
+            # 押下時: 影なし、ボタンを少し下・右にずらす
+            offset = press_offset
+            self.canvas.create_rectangle(
+                bx1 + offset, by1 + offset, bx2 + offset, by2 + offset,
+                fill=pressed_bg, stipple="gray50", outline="#ffffff", width=2, tags="overlay"
+            )
+            cx, cy = (bx1 + bx2) // 2 + offset, (by1 + by2) // 2 + offset
+        else:
+            # 通常時: 影を描画してからボタンを描画
+            self.canvas.create_rectangle(
+                bx1 + shadow_offset, by1 + shadow_offset,
+                bx2 + shadow_offset, by2 + shadow_offset,
+                fill="#000000", stipple="gray50", outline="", tags="overlay"
+            )
+            self.canvas.create_rectangle(
+                bx1, by1, bx2, by2,
+                fill=bg, stipple="gray50", outline="#ffffff", width=2, tags="overlay"
+            )
+            cx, cy = (bx1 + bx2) // 2, (by1 + by2) // 2
 
         # ラベル
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
         self.canvas.create_text(
             cx, cy - 10, text=label, fill=fg,
-            font=("Meiryo UI", 28, "bold"), tags="overlay"
+            font=Fonts.button(), tags="overlay"
         )
 
         # 操作説明
         self.canvas.create_text(
             cx, cy + 35, text="クリック / ジェスチャー",
-            fill=fg, font=("Meiryo UI", 9), tags="overlay"
+            fill=fg, font=Fonts.tiny(), tags="overlay"
         )
 
         # 進捗ゲージ
         if progress > 0:
-            gy = y2 - pad - 25
-            gw = (x2 - x1 - pad * 2 - 20) * progress
+            gy = by2 - 25 + (press_offset if is_pressed else 0)
+            gx1 = bx1 + 10 + (press_offset if is_pressed else 0)
+            gx2 = bx2 - 10 + (press_offset if is_pressed else 0)
+            gw = (gx2 - gx1) * progress
             self.canvas.create_rectangle(
-                x1 + pad + 10, gy, x2 - pad - 10, gy + 15,
+                gx1, gy, gx2, gy + 15,
                 fill="#333333", outline="#666666", tags="overlay"
             )
             self.canvas.create_rectangle(
-                x1 + pad + 10, gy, x1 + pad + 10 + gw, gy + 15,
-                fill="#00cc00", tags="overlay"
+                gx1, gy, gx1 + gw, gy + 15,
+                fill=Colors.SUCCESS, tags="overlay"
             )
 
     def _draw_input_overlay(self):
@@ -588,23 +646,55 @@ class ATMUI:
         )
 
     def _draw_action_button(self, x, y, label, color, progress=0):
-        """アクションボタン描画"""
+        """アクションボタン描画（押下エフェクト付き）"""
         w, h = 150, 55
-        self.canvas.create_rectangle(
-            x, y, x + w, y + h,
-            fill=color, stipple="gray50",
-            outline="#ffffff", width=2, tags="overlay"
-        )
-        self.canvas.create_text(
-            x + w // 2, y + h // 2, text=label,
-            fill="white", font=("Meiryo UI", 14, "bold"), tags="overlay"
-        )
-        if progress > 0:
-            gw = w * progress
+        shadow_offset = StyleLayout.SHADOW_OFFSET
+        press_offset = StyleLayout.PRESS_OFFSET
+
+        is_pressed = progress > 0.3
+
+        if is_pressed:
+            # 押下時: 影なし、ボタンをずらす
+            offset = press_offset
             self.canvas.create_rectangle(
-                x, y + h - 6, x + gw, y + h,
-                fill="#00cc00", tags="overlay"
+                x + offset, y + offset, x + w + offset, y + h + offset,
+                fill=color, stipple="gray50",
+                outline="#ffffff", width=2, tags="overlay"
             )
+            self.canvas.create_text(
+                x + w // 2 + offset, y + h // 2 + offset, text=label,
+                fill="white", font=("Meiryo UI", 14, "bold"), tags="overlay"
+            )
+            # 進捗ゲージ
+            if progress > 0:
+                gw = w * progress
+                self.canvas.create_rectangle(
+                    x + offset, y + h - 6 + offset, x + gw + offset, y + h + offset,
+                    fill=Colors.SUCCESS, tags="overlay"
+                )
+        else:
+            # 通常時: 影を描画
+            self.canvas.create_rectangle(
+                x + shadow_offset, y + shadow_offset,
+                x + w + shadow_offset, y + h + shadow_offset,
+                fill="#000000", stipple="gray50", outline="", tags="overlay"
+            )
+            self.canvas.create_rectangle(
+                x, y, x + w, y + h,
+                fill=color, stipple="gray50",
+                outline="#ffffff", width=2, tags="overlay"
+            )
+            self.canvas.create_text(
+                x + w // 2, y + h // 2, text=label,
+                fill="white", font=("Meiryo UI", 14, "bold"), tags="overlay"
+            )
+            # 進捗ゲージ
+            if progress > 0:
+                gw = w * progress
+                self.canvas.create_rectangle(
+                    x, y + h - 6, x + gw, y + h,
+                    fill=Colors.SUCCESS, tags="overlay"
+                )
 
     def _draw_result_overlay(self):
         """結果画面"""
@@ -691,33 +781,65 @@ class ATMUI:
         if "left" in guides:
             left_p = progress if current_dir == "left" else 0
             zone = self.guide_zones["left"]
-            self._draw_guide_button(zone, f"👈 {guides['left']}", "#005bb5", left_p)
+            self._draw_guide_button("left", zone, f"👈 {guides['left']}", "#005bb5", left_p)
 
         if "right" in guides:
             right_p = progress if current_dir == "right" else 0
             zone = self.guide_zones["right"]
-            self._draw_guide_button(zone, f"{guides['right']} 👉", "#e67e22", right_p)
+            self._draw_guide_button("right", zone, f"{guides['right']} 👉", "#e67e22", right_p)
 
-    def _draw_guide_button(self, zone, text, color, progress=0):
-        """ガイドボタン描画"""
+    def _draw_guide_button(self, zone_name, zone, text, color, progress=0):
+        """ガイドボタン描画（押下エフェクト付き）"""
         x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
         w = x2 - x1
+        shadow_offset = 3  # ガイドボタンは小さいので影も小さく
+        press_offset = 2
 
-        self.canvas.create_rectangle(
-            x1, y1, x2, y2, fill=color, stipple="gray50",
-            outline="#ffffff", width=2, tags="overlay"
-        )
-        self.canvas.create_text(
-            (x1 + x2) // 2, (y1 + y2) // 2, text=text,
-            fill="white", font=("Meiryo UI", 12, "bold"), tags="overlay"
-        )
+        # 押下状態の判定（進捗が0.3以上、またはマウスクリック中で押下とみなす）
+        is_clicked = (self._clicked_zone is not None and
+                      self._clicked_zone[0] == zone_name and
+                      self._clicked_zone[1] == "guide")
+        is_pressed = progress > 0.3 or is_clicked
 
-        if progress > 0:
-            gw = w * progress
+        if is_pressed:
+            # 押下時
+            offset = press_offset
             self.canvas.create_rectangle(
-                x1, y2 - 5, x1 + gw, y2,
-                fill="#00cc00", tags="overlay"
+                x1 + offset, y1 + offset, x2 + offset, y2 + offset,
+                fill=color, stipple="gray50",
+                outline="#ffffff", width=2, tags="overlay"
             )
+            self.canvas.create_text(
+                (x1 + x2) // 2 + offset, (y1 + y2) // 2 + offset, text=text,
+                fill="white", font=("Meiryo UI", 12, "bold"), tags="overlay"
+            )
+            if progress > 0:
+                gw = w * progress
+                self.canvas.create_rectangle(
+                    x1 + offset, y2 - 5 + offset, x1 + gw + offset, y2 + offset,
+                    fill=Colors.SUCCESS, tags="overlay"
+                )
+        else:
+            # 通常時: 影を描画
+            self.canvas.create_rectangle(
+                x1 + shadow_offset, y1 + shadow_offset,
+                x2 + shadow_offset, y2 + shadow_offset,
+                fill="#000000", stipple="gray50", outline="", tags="overlay"
+            )
+            self.canvas.create_rectangle(
+                x1, y1, x2, y2, fill=color, stipple="gray50",
+                outline="#ffffff", width=2, tags="overlay"
+            )
+            self.canvas.create_text(
+                (x1 + x2) // 2, (y1 + y2) // 2, text=text,
+                fill="white", font=("Meiryo UI", 12, "bold"), tags="overlay"
+            )
+            if progress > 0:
+                gw = w * progress
+                self.canvas.create_rectangle(
+                    x1, y2 - 5, x1 + gw, y2,
+                    fill=Colors.SUCCESS, tags="overlay"
+                )
 
     # ===== 後方互換性 =====
 

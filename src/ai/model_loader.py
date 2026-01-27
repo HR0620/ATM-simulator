@@ -87,24 +87,24 @@ class AIModel:
         if self.model is None:
             return None
 
-        # --- 画像の前処理 ---
-        # 1. BGRからRGBに変換 (Teachable MachineはRGB学習)
+        #画像の前処理
+        #BGRからRGBに変換 (Teachable MachineはRGB学習)
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # 2. モデルの入力サイズ(224x224)にリサイズ
+        #モデルの入力サイズ(224x224)にリサイズ
         image = cv2.resize(frame_rgb, (224, 224), interpolation=cv2.INTER_AREA)
 
-        # 3. NumPy配列に変換し、形状を (1, 224, 224, 3) に合わせる
+        #NumPy配列に変換し、形状を (1, 224, 224, 3) に合わせる
         image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
 
-        # 4. 値を -1 から 1 の範囲に正規化 (Teachable Machineの仕様)
+        #値を -1 から 1 の範囲に正規化 (Teachable Machineの仕様)
         image = (image / 127.5) - 1
 
-        # --- 推論実行 ---
+        #推論実行
         prediction = self.model.predict(image, verbose=0)
         current_scores = prediction[0]
 
-        # --- EMA (指数移動平均) フィルタ ---
+        #EMA (指数移動平均) フィルタ
         if self.use_ema:
             if self._ema_scores is None:
                 self._ema_scores = current_scores
@@ -112,18 +112,15 @@ class AIModel:
                 self._ema_scores = (self.ema_alpha * current_scores) + \
                                    ((1 - self.ema_alpha) * self._ema_scores)
 
-            # 判定には平滑化されたスコアを使用
+            #判定には平滑化されたスコアを使用
             scores_to_use = self._ema_scores
         else:
             scores_to_use = current_scores
 
-        # デバッグ用標準出力は削除 (ロギングが必要ならloggingモジュールを使用すべき)
-        # logging.debug(f"Pred: {scores_to_use}")
-
-        # 最も高いスコアのインデックスを取得
+        #最も高いスコアのインデックスを取得
         index = np.argmax(scores_to_use)
 
-        # クラス名と確信度を取得
+        #クラス名と確信度を取得
         class_name = self.labels[index] if index < len(self.labels) else str(index)
         confidence = scores_to_use[index]
 
