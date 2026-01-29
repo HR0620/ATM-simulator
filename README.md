@@ -80,7 +80,7 @@ python --version
 <details>
 <summary><b>Windows</b></summary>
 
-[Releasesページ](https://github.com/HR0620/ATM-simulator/releases/latest)から `ATM-simulator.zip` をダウンロードし、解凍して実行してください。
+[Releasesページ](https://github.com/HR0620/ATM-simulator/releases/latest)から `AI-based Touchless Mimic (ATM).zip` をダウンロードし、解凍して実行してください。
 
 > **注意**: Windows Defenderの警告が出る場合は「詳細情報」→「実行」をクリック
 </details>

@@ -3,7 +3,6 @@ import os
 
 # srcディレクトリをモジュール検索パスに追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# srcディレクトリをモジュール検索パスに追加しない (src.xxx でインポートするため)
 
 if __name__ == "__main__":
     import traceback
