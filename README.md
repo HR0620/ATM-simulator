@@ -1,5 +1,5 @@
-# AI-based Touchless Mimic
->AI-based Touchless Mimic(ATM)は、画像認識技術を活用して、タッチに対応していないディスプレイでもタッチを可能にした次世代ATMです。
+# AI-based Touchless Machine
+>AI-based Touchless Machine (ATM)は、画像認識技術を活用して、タッチに対応していないディスプレイでもタッチを可能にした次世代ATMです。
 
 <div align="center">
 <img src="docs/images/icon.png" width="200" height="200">
@@ -80,7 +80,7 @@ python --version
 <details>
 <summary><b>Windows</b></summary>
 
-[Releasesページ](https://github.com/HR0620/ATM-simulator/releases/latest)から `AI-based Touchless Mimic (ATM).zip` をダウンロードし、解凍して実行してください。
+[Releasesページ](https://github.com/HR0620/ATM-simulator/releases/latest)から `AI-based Touchless Machine (ATM).zip` をダウンロードし、解凍して実行してください。
 
 > **注意**: Windows Defenderの警告が出る場合は「詳細情報」→「実行」をクリック
 </details>
@@ -96,7 +96,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-## 動作デモ
+## 動作デモ(v1.2.0)
 
 ### 待機画面・顔検出
 
@@ -193,6 +193,44 @@ Q: 意図しないボタンが反応してしまいます。
 A: YOLOv8-Pose モデルを使用していますが、背景に複雑な模様や人物のような形状があると誤認識する場合があります。また、手が画面の端に近すぎたり、照明が暗すぎると認識精度が低下します。
 
 設定ファイルの `vision` セクションで `min_detection_confidence`（信頼度閾値）を上げることで、誤検出を減らすことが可能です。
+</details>
+
+<details>
+<summary>
+<b>
+Q: ボタンが反応しない。
+</b>
+</summary>
+
+A: 本システムは、手首の位置によってどこのボタンを押しているか判定しています。そのため、画面から **70cm** 以上離れて、背筋を伸ばしてご利用ください。
+</details>
+
+<details>
+<summary>
+<b>
+
+Q: `python run.py` でエラーが出て実行できません。
+</b>
+</summary>
+
+A: 主に以下の3点について、お使いの環境を確認してください。
+
+1. **Python バージョンの確認**:
+   * 本システムは **Python 3.13** 以降の最新機能を活用しています。`python --version` を実行し、バージョンが **3.13.0** 以上であることを確認してください。
+
+2. **依存ライブラリの整合性 (OpenCV / NumPy)**:
+   * Python 3.13 環境ではライブラリの組み合わせが重要です。特に OpenCV と NumPy のバージョンが古いと正しく動作しません。以下のコマンドで `pip` を更新した上で、依存関係を強制的に再インストールしてみてください：
+
+     ```bash
+     pip install -U pip
+     pip install -r requirements.txt --force-reinstall
+     ```
+
+3. **カメラデバイスとアクセス権限**:
+   * Webカメラが正しく接続され、他のアプリケーション（ZoomやTeamsなど）で使用中でないことを確認してください。また、Windows の「設定 > プライバシーとセキュリティ > カメラ」で、アプリによるカメラへのアクセスが許可されている必要があります。
+
+> [!TIP]
+> 環境構築で問題が解決しない場合は、[Releases ページ](https://github.com/HR0620/ATM-simulator/releases/latest) から提供しているビルド済みのパッケージ（**EXE版**）を利用することをお勧めします。これにより、Python の環境構築なしで即座にアプリを起動できます。
 </details>
 
 ### その他の問題

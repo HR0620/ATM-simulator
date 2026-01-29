@@ -7,12 +7,13 @@ camera:
 ui:
   window_width: 1024               # アプリウィンドウの幅
   window_height: 768               # アプリウィンドウの高さ
-  title: "AI-based Touchless Mimic (ATM)"   # ウィンドウタイトル
+  title: "AI-based Touchless Machine (ATM)"   # ウィンドウタイトル
   debug_mode: false                 # デバッグパネルの表示 (本番は false 推奨)
 
 face_guide:
   required_duration: 1.0           # 認証に必要な継続時間（秒）
-  guide_box_ratio: 0.1             # 画面に対するガイド枠の比率
+  guide_box_ratio: 0.6             # 実際の判定用ガイド枠の比率 (従来より拡大して遊びを作る)
+  visual_box_ratio: 0.4            # 画面表示用ガイド枠の比率 (視覚的に誘導するため小さく設定)
   colors:
     waiting: "#FFFFFF"             # 待機中（白）
     detecting: "#FFD700"           # 認識中（黄色）

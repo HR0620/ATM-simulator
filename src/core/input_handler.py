@@ -51,27 +51,31 @@ class PinPad:
         return layout_data
 
 
-class NumericInputBuffer:
+class InputBuffer:
     """
-    数値入力（口座番号・金額・PIN）のバッファ管理クラス
+    数値・文字列入力のバッファ管理クラス
     """
 
-    def __init__(self, max_length=10, is_pin=False):
+    def __init__(self, max_length=10, is_pin=False, digit_only=True):
         self.buffer = ""
         self.max_length = max_length
         self.is_pin = is_pin  # PINモードならアスタリスク表示用
+        self.digit_only = digit_only
 
     def add_char(self, char):
-        """文字を追加（数字のみ）"""
+        """文字を追加"""
         if len(self.buffer) < self.max_length:
-            if char.isdigit():
+            if not self.digit_only or char.isdigit():
                 self.buffer += char
                 return True
         return False
 
     def backspace(self):
-        """一文字消去"""
-        self.buffer = self.buffer[:-1]
+        """一文字消去 (削除に成功したらTrue)"""
+        if len(self.buffer) > 0:
+            self.buffer = self.buffer[:-1]
+            return True
+        return False
 
     def clear(self):
         self.buffer = ""

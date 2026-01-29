@@ -8,14 +8,20 @@ class FacePositionChecker:
     顔の位置を確認し、ガイド枠内に収まっているか判定するクラス。
     """
 
-    def __init__(self, required_frames: int = 30, guide_box_ratio: float = 0.6):
+    def __init__(self, required_frames: int = 30, guide_box_ratio: float = 0.6, visual_ratio: float = 0.4):
         """
         Args:
             required_frames (int): 認証完了までに必要な連続フレーム数
-            guide_box_ratio (float): ガイド枠の画面に対する比率
+            guide_box_ratio (float): 実際の判定用ガイド枠の比率 (デフォルト0.6)
+            visual_ratio (float): 画面表示用ガイド枠の比率 (デフォルト0.4 - 判定用より小さくして遊びを作る)
         """
         self.required_frames = required_frames
         self.guide_box_ratio = guide_box_ratio
+        self.visual_ratio = visual_ratio # 視覚用
+
+        # 安全性チェック: 視覚枠は判定枠より大きくならないこと
+        if self.visual_ratio > self.guide_box_ratio:
+            self.visual_ratio = self.guide_box_ratio
 
         self.consecutive_frames = 0  # 条件を満たした連続フレーム数
         self.is_verified = False     # 認証完了フラグ
@@ -69,28 +75,33 @@ class FacePositionChecker:
 
         Returns:
             status (str): "waiting"(待機中), "detecting"(認識中), "confirmed"(完了)
-            guide_box (tuple): ガイド枠の座標 (x, y, w, h)
-            face_rect (tuple): 検出された顔（そのまま返す）
+            visual_box (tuple): 表示用のガイド枠座標 (x, y, w, h)
+            face_rect (tuple): 検出された顔
         """
         height, width, _ = frame_shape
 
-        # ガイド枠の計算（画面中央に正方形）
-        box_size = int(height * self.guide_box_ratio)
-        box_x = (width - box_size) // 2
-        box_y = (height - box_size) // 2
-        guide_box = (box_x, box_y, box_size, box_size)
+        # 表示用ガイド枠の計算
+        v_size = int(height * self.visual_ratio)
+        v_x = (width - v_size) // 2
+        v_y = (height - v_size) // 2
+        visual_box = (v_x, v_y, v_size, v_size)
+
+        # 判定用ガイド枠の計算
+        a_size = int(height * self.guide_box_ratio)
+        a_x = (width - a_size) // 2
+        a_y = (height - a_size) // 2
 
         if face_rect is None:
             self.consecutive_frames = 0
-            return "waiting", guide_box, None
+            return "waiting", visual_box, None
 
         fx, fy, fw, fh = face_rect
         face_center_x = fx + fw // 2
         face_center_y = fy + fh // 2
 
-        # 顔の中心がガイド枠内にあるかチェック
-        is_x_inside = box_x < face_center_x < box_x + box_size
-        is_y_inside = box_y < face_center_y < box_y + box_size
+        # 顔の中心が「判定用」ガイド枠内にあるかチェック
+        is_x_inside = a_x < face_center_x < a_x + a_size
+        is_y_inside = a_y < face_center_y < a_y + a_size
 
         if is_x_inside and is_y_inside:
             self.consecutive_frames += 1
@@ -100,11 +111,11 @@ class FacePositionChecker:
         # おおよそN秒間（FPSによるがNフレーム）留まっていたらOK
         if self.consecutive_frames >= self.required_frames:
             self.is_verified = True
-            return "confirmed", guide_box, face_rect
+            return "confirmed", visual_box, face_rect
         elif self.consecutive_frames > 0:
-            return "detecting", guide_box, face_rect
+            return "detecting", visual_box, face_rect
         else:
-            return "waiting", guide_box, face_rect
+            return "waiting", visual_box, face_rect
 
     def process(self, frame):
         """

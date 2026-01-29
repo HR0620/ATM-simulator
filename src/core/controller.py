@@ -117,9 +117,11 @@ class ATMController:
 
         from src.core.face_checker import FacePositionChecker
         guide_ratio = self.config["face_guide"].get("guide_box_ratio", 0.6)
+        visual_ratio = self.config["face_guide"].get("visual_box_ratio", 0.4)
         self.face_checker = FacePositionChecker(
             required_frames=30,
-            guide_box_ratio=guide_ratio
+            guide_box_ratio=guide_ratio,
+            visual_ratio=visual_ratio
         )
 
         # UI
@@ -131,6 +133,11 @@ class ATMController:
         self.last_key_event = None
         self.last_trigger_gesture = None  # UX Loop防止用
         self.is_exiting = False
+        
+        # Audio Cooldown (Phase 1)
+        self._last_sound_time = 0
+        self._sound_cooldown = 0.1  # 100ms
+        self._sound_played_this_frame = False
 
         # State Machine
         self.state_machine = StateMachine(self, FaceAlignmentState)
@@ -153,10 +160,28 @@ class ATMController:
         self.gesture_validator.force_reset()
         self.state_machine.change_state(next_state_cls)
 
-    def play_sound(self, filename):
-        """音声再生"""
+    def play_sound(self, filename, force=False):
+        """
+        音声再生 (一括管理・スタック防止)
+        
+        Args:
+            filename (str): assets/sounds 内のファイル名 (拡張子なし)
+            force (bool): クールダウンとフレームロックを無視して強制再生するか (重要SE用)
+        """
         if not pygame.mixer.get_init():
             return
+
+        # クールダウンチェック (force=True の場合は無視)
+        import time
+        now = time.time()
+        
+        if not force:
+            # 1フレームに1回制限
+            if self._sound_played_this_frame:
+                return
+            # クールダウンチェック (100ms)
+            if (now - self._last_sound_time < self._sound_cooldown):
+                return
 
         # 終了シーケンス中は come-again 以外の音声を無視する
         if getattr(self, "is_exiting", False) and filename != "come-again":
@@ -165,7 +190,6 @@ class ATMController:
         base_filename = os.path.join("assets", "sounds", filename)
 
         for ext in [".mp3", ".mp4", ".wav"]:
-            # get_resource_pathを使って絶対パス解決
             relative_path = base_filename + ext
             path = get_resource_path(relative_path)
 
@@ -173,12 +197,41 @@ class ATMController:
                 try:
                     pygame.mixer.music.load(path)
                     pygame.mixer.music.play()
+                    self._last_sound_time = now
+                    self._sound_played_this_frame = True
                 except Exception as e:
                     print(f"音声再生エラー ({path}): {e}")
                 return
 
+    # ----- SE Helper Methods -----
+    def play_button_se(self):
+        """肯定的操作音"""
+        self.play_sound("button")
+
+    def play_back_se(self):
+        """戻る操作音"""
+        self.play_sound("back")
+
+    def play_beep_se(self):
+        """無効操作音"""
+        self.play_sound("beep")
+
+    def play_error_se(self):
+        """間違い入力音"""
+        self.play_sound("incorrect")
+
+    def play_assert_se(self):
+        """重大エラー音"""
+        self.play_sound("assert")
+
+    def play_cancel_se(self):
+        """取消音 (文字削除など)"""
+        self.play_sound("cancel")
+
     def update_loop(self):
         """メインの更新ループ"""
+        # フレーム毎のフラグリセット
+        self._sound_played_this_frame = False
         try:
             # 終了処理中は Exit画面 (bow.png) を表示してループ継続
             if getattr(self, "is_exiting", False):

@@ -52,6 +52,12 @@ class ATMUI:
         # 画像リソース
         self.bow_image = None
         self._load_images()
+        
+        # ガイダンス表示用
+        self._guidance_text = ""
+        self._guidance_timer = None
+        self._last_guidance_time = 0
+        self._guidance_cooldown = 2.0  # 2秒間隔
 
         # レイアウト計算
         self._calculate_layout()
@@ -176,6 +182,9 @@ class ATMUI:
 
         # 背景クリア
         self.canvas.delete("all")
+        
+        # ガイダンス表示の自動クリア（もしあれば）
+        # (タイマーで管理されるが念のため描画前に状態確認)
 
         # 1. カメラ映像をメインエリアに描画
         self._draw_camera_background(frame)
@@ -413,6 +422,10 @@ class ATMUI:
             self._draw_result_overlay()
         elif mode == "exit":
             self._draw_exit_overlay()
+            
+        # ガイダンスがあれば最前面に描画
+        if self._guidance_text:
+            self._draw_guidance_overlay()
 
     def _draw_menu_overlay(self):
         """メインメニュー"""
@@ -654,12 +667,12 @@ class ATMUI:
 
         # はい/いいえボタン
         left_p = progress if current_dir == "left" else 0
-        self._draw_action_button(80, self.height - 90, "はい 👈", "#005bb5", left_p)
+        self._draw_action_button(80, self.height - 90, "はい", "#005bb5", left_p)
 
         right_p = progress if current_dir == "right" else 0
         self._draw_action_button(
             self.main_width - 230, self.height - 90,
-            "いいえ 👉", "#e67e22", right_p
+            "いいえ", "#e67e22", right_p
         )
 
     def _draw_action_button(self, x, y, label, color, progress=0):
@@ -784,19 +797,24 @@ class ATMUI:
         )
 
     def _draw_face_align_overlay(self):
-        """顔位置合わせ画面"""
+        """顔位置合わせ画面 (中央配置を保証)"""
         face_result = self._state_data.get("face_result")
 
         cx = self.main_width // 2
         cy = self.height // 2
-        box_size = min(self.main_width, self.height) // 2
+        
+        # 表示用枠サイズ (キャンバスサイズから計算して中央固定を保証)
+        v_ratio = self.config["face_guide"].get("visual_box_ratio", 0.4)
+        v_size = int(self.height * v_ratio)
+        vx = cx - v_size // 2
+        vy = cy - v_size // 2
 
         status = "waiting"
         color = "#ffffff"
         width = 2
 
         if face_result:
-            status = face_result[0]
+            status = face_result[0] # (status, visual_box, face_rect)
             if status == "detecting":
                 color = "#ffff00"
                 width = 4
@@ -804,39 +822,90 @@ class ATMUI:
                 color = "#00ff00"
                 width = 6
 
+        # 表示枠 (visual_ratioに基づく中央枠)
+        v_ratio = self.config["face_guide"].get("visual_box_ratio", 0.4)
+        v_size = int(self.height * v_ratio)
+        # キャンバス中心 (cx, cy) に基づいて配置することで完璧に中央寄せ
+        vx = cx - v_size // 2
+        vy = cy - v_size // 2
+
         self.canvas.create_rectangle(
-            cx - box_size // 2, cy - box_size // 2,
-            cx + box_size // 2, cy + box_size // 2,
+            vx, vy, vx + v_size, vy + v_size,
             outline=color, width=width, tags="overlay"
         )
 
         msg = ""
         if status == "waiting":
-            msg = "顔を枠の中に合わせてください"
+            msg = "枠内に顔を合わせてください"
         elif status == "detecting":
-            msg = "認識中..."
+            msg = "認証中..."
 
         if msg:
             self.canvas.create_text(
-                cx, cy + box_size // 2 + 35, text=msg,
-                fill=color, font=("Meiryo UI", 20, "bold"), tags="overlay"
+                cx, vy + v_size + 40, text=msg,
+                fill=color, font=("Meiryo UI", 24, "bold"), tags="overlay"
             )
 
+    def show_guidance(self, text):
+        """ガイダンスメッセージを一時的に表示 (レート制限あり)"""
+        import time
+        now = time.time()
+        # クールダウンを短縮 (2.0s -> 0.2s) し、連続したエラーでも表示されやすくする
+        if now - self._last_guidance_time < 0.2:
+            return
+
+        self._guidance_text = text
+        self._last_guidance_time = now
+        
+        if self._guidance_timer:
+            self.root.after_cancel(self._guidance_timer)
+        
+        self._guidance_timer = self.root.after(2000, self._clear_guidance)
+
+    def _clear_guidance(self):
+        self._guidance_text = ""
+        self._guidance_timer = None
+
+    def _draw_guidance_overlay(self):
+        """画面下部にガイダンスを表示 (ユニバーサルデザイン対応)"""
+        cx = self.main_width // 2
+        cy = self.height - 100
+        
+        # 背景 (より目立つようにサイズ調整)
+        tw = 700 # 横幅拡大
+        th = 60  # 厚み増加
+        self.canvas.create_rectangle(
+            cx - tw//2, cy - th//2, cx + tw//2, cy + th//2,
+            fill="#000000", stipple="gray75", outline="cyan", width=2, tags="overlay"
+        )
+        
+        # テキスト (サイズ拡大 12 -> 20)
+        self.canvas.create_text(
+            cx, cy, text=f"{self._guidance_text}",
+            fill="cyan", font=("Meiryo UI", 20, "bold"), tags="overlay"
+        )
+
     def _draw_guides(self):
-        """ガイドボタン描画"""
+        """ガイドボタン描画 (進む/戻るボタンを実体化)"""
         guides = self._state_data.get("guides", {})
         current_dir = self._state_data.get("current_direction")
         progress = self._state_data.get("progress", 0)
 
+        # 左ボタン (進む/はい)
         if "left" in guides:
             left_p = progress if current_dir == "left" else 0
             zone = self.guide_zones["left"]
-            self._draw_guide_button("left", zone, f"👈 {guides['left']}", "#005bb5", left_p)
+            label = f"{guides['left']}"
+            color = Colors.BUTTON["left"]["bg"]
+            self._draw_guide_button("left", zone, label, color, left_p)
 
+        # 右ボタン (戻る/いいえ)
         if "right" in guides:
             right_p = progress if current_dir == "right" else 0
             zone = self.guide_zones["right"]
-            self._draw_guide_button("right", zone, f"{guides['right']} 👉", "#e67e22", right_p)
+            label = f"{guides['right']}"
+            color = Colors.BUTTON["right"]["bg"]
+            self._draw_guide_button("right", zone, label, color, right_p)
 
     def _draw_guide_button(self, zone_name, zone, text, color, progress=0):
         """ガイドボタン描画（押下エフェクト付き）"""
