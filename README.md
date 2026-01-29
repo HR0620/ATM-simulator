@@ -63,13 +63,12 @@ python --version
 
 ## 使用ライブラリ
 
-*   ultralytics
-*   opencv-python
-*   numpy
-*   pillow
-*   pygame
-*   pyyaml
-*   h5py
+* numpy
+* opencv-python
+* Pillow
+* PyYAML
+* pygame
+* ultralytics
 
 ## インストール
 
@@ -208,8 +207,7 @@ A: 本システムは、手首の位置によってどこのボタンを押し�
 <details>
 <summary>
 <b>
-
-Q: `python run.py` でエラーが出て実行できません。
+Q: python run.py で実行してもエラーが出て実行できません。
 </b>
 </summary>
 
