@@ -3,17 +3,17 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "atm-simulator"
+name = "AI-based Touchless Mimic (ATM)"
 version = "1.1.0"
 description = "AI Non-Contact ATM Simulator using Gesture Recognition"
 authors = [
-    {name = "秋乃七草 (Akino Nanakusa)"},
+    {name = "Renju (HR0620)"},
 ]
-requires-python = "==3.10"
+requires-python = ">=3.13"
 dependencies = [
     "opencv-python==4.9.0.80",
     "numpy==1.26.4",
-    "tensorflow==2.15.0",
+    "ultralytics==8.0.16",
     "Pillow==10.2.0",
     "PyYAML==6.0.1",
     "h5py==3.10.0",

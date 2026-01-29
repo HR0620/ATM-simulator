@@ -12,7 +12,8 @@ import cv2
 import pygame
 import os
 from src.vision.camera_manager import CameraManager
-from src.ai.model_loader import AIModel
+from src.vision.async_yolo_detector import AsyncYoloDetector
+from src.vision.position_tracker import PositionTracker
 from src.ui.screens import ATMUI
 from src.core.gesture_validator import GestureValidator
 from src.core.state_machine import StateMachine
@@ -74,19 +75,32 @@ class ATMController:
             print(f"Warning: Audio mixer failed to initialize: {e}")
 
         # Camera
+        # Camera
+        fps = self.config["camera"].get("fps", 30)
         self.camera = CameraManager(
             device_id=self.config["camera"]["device_id"],
             width=self.config["camera"]["width"],
-            height=self.config["camera"]["height"]
+            height=self.config["camera"]["height"],
+            fps=fps
         )
 
-        # AI Model
-        gesture_conf = self.config.get("gesture", {})
-        self.ai_model = AIModel(
-            model_path=self.config["model"]["path"],
-            labels_path=self.config["model"]["labels_path"],
-            use_ema=gesture_conf.get("use_ema", False),
-            ema_alpha=gesture_conf.get("ema_alpha", 0.4)
+        # Vision System (YOLOv8-Pose + Async)
+        vision_conf = self.config.get("vision", {})
+        pos_conf = self.config.get("position", {})
+        safety_conf = self.config.get("safety", {})
+        
+        self.async_detector = AsyncYoloDetector(
+            model_path=vision_conf.get("model_path", "yolov8n-pose.pt"),
+            conf_threshold=vision_conf.get("min_detection_confidence", 0.5),
+            interval=vision_conf.get("inference_interval", 0.03),
+            safety_conf=safety_conf
+        )
+        
+        self.position_tracker = PositionTracker(
+            left_threshold=pos_conf.get("left_threshold", 0.333),
+            right_threshold=pos_conf.get("right_threshold", 0.667),
+            required_consecutive=pos_conf.get("required_consecutive", 5),
+            free_threshold=pos_conf.get("free_threshold", 5)
         )
 
         # Gesture Validator
@@ -102,14 +116,20 @@ class ATMController:
         self.pin_pad = PinPad()
 
         from src.core.face_checker import FacePositionChecker
-        self.face_checker = FacePositionChecker(required_frames=30)
+        guide_ratio = self.config["face_guide"].get("guide_box_ratio", 0.6)
+        self.face_checker = FacePositionChecker(
+            required_frames=30,
+            guide_box_ratio=guide_ratio
+        )
 
         # UI
         self.ui = ATMUI(self.root, self.config)
 
         # Context
+        # Context
         self.shared_context = {}
         self.last_key_event = None
+        self.last_trigger_gesture = None  # UX Loop防止用
         self.is_exiting = False
 
         # State Machine
@@ -117,7 +137,8 @@ class ATMController:
 
     def _start_app(self):
         """Start App"""
-        print("Starting camera...")
+        print("Starting camera and vision system...")
+        self.async_detector.start()
         self.camera.start()
         self.state_machine.start()
         self.update_loop()
@@ -159,6 +180,12 @@ class ATMController:
     def update_loop(self):
         """メインの更新ループ"""
         try:
+            # 終了処理中は Exit画面 (bow.png) を表示してループ継続
+            if getattr(self, "is_exiting", False):
+                self.ui.render_frame(None, {"mode": "exit"})
+                self.root.after(33, self.update_loop)
+                return
+
             # 1. カメラ画像取得
             raw_frame = self.camera.get_frame()
             if raw_frame is None:
@@ -168,13 +195,55 @@ class ATMController:
             # 2. 表示用に左右反転
             display_frame = cv2.flip(raw_frame, 1)
 
-            # 3. AI予測
-            prediction = self.ai_model.predict(display_frame)
+            # 3. Vision Pipeline
+            # 非同期検出リクエスト
+            self.async_detector.detect_async(display_frame)
+            
+            # 最新結果の取得
+            detection_result = self.async_detector.get_latest_result()
+            
+            # 位置追跡と安定化
+            tracker_result = self.position_tracker.update(detection_result)
+            
+            # AIModel互換の予測辞書を作成 (GestureValidator用)
+            # PositionTrackerですでに安定化されているため、Validatorの連続判定は補助的なものになる
+            prediction = {
+                "class_name": tracker_result["position"],
+                "confidence": 1.0 if tracker_result["is_stable"] else 0.5,
+                "all_scores": []
+            }
 
-            # 4. ジェスチャー検証
+            # 4. ジェスチャー検証 (Lock機構など)
+            # Trackerがunstableな場合はValidatorに渡さない（またはfree扱い）方が安全かもしれないが、
+            # confidenceで制御する
             confirmed_gesture = self.gesture_validator.validate(prediction)
-            progress = self.gesture_validator.get_progress()
-            current_direction = self.gesture_validator.get_current_direction()
+            
+            # UX Loop防止: 同一ジェスチャーの連続発火をブロック (Same-Gesture Blocking)
+            # Free状態（手がなくなった）ならリセットして次の動作を受け付ける
+            if tracker_result["position"] == "free" and tracker_result["is_stable"]:
+                self.last_trigger_gesture = None
+
+            # 意図の変更（ジェスチャーの変化）のみを受け入れる
+            effective_gesture = None
+            if confirmed_gesture:
+                if confirmed_gesture == self.last_trigger_gesture:
+                    # 前回と同じジェスチャー（押しっぱなし）は無視
+                    effective_gesture = None
+                else:
+                    # ジェスチャーが変化した -> 採用
+                    self.last_trigger_gesture = confirmed_gesture
+                    effective_gesture = confirmed_gesture
+            # confirmed_gestureがNone（不安定）の場合は状態を更新しない（ノイズ対策）
+            
+            # 進捗はTrackerまたはValidatorから取得
+            # Trackerのprogressの方が直感的かもしれない
+            progress = tracker_result["progress"]
+            current_direction = tracker_result["position"]
+
+            # 5. デバッグオーバーレイ描画
+            vision_conf = self.config.get("vision", {})
+            if vision_conf.get("debug_overlay", False) or self.config["ui"].get("debug_mode", False):
+                self._draw_debug_overlay(display_frame, detection_result, tracker_result)
 
             # 5. デバッグ情報を収集
             debug_info = {
@@ -191,7 +260,7 @@ class ATMController:
             # 7. State更新
             self.state_machine.update(
                 display_frame,
-                confirmed_gesture,
+                effective_gesture,
                 key_event,
                 progress,
                 current_direction,
@@ -206,6 +275,51 @@ class ATMController:
             traceback.print_exc()
             self.root.after(1000, self.update_loop)
 
+    def _draw_debug_overlay(self, frame, detection, tracker_result):
+        """デバッグ情報をフレームに描画"""
+        h, w = frame.shape[:2]
+        
+        # 領域境界線
+        pos_conf = self.config.get("position", {})
+        l_th = int(w * pos_conf.get("left_threshold", 0.333))
+        r_th = int(w * pos_conf.get("right_threshold", 0.667))
+        
+        cv2.line(frame, (l_th, 0), (l_th, h), (0, 255, 255), 1)
+        cv2.line(frame, (r_th, 0), (r_th, h), (0, 255, 255), 1)
+        
+        # 検出点 (Wrist)
+        if detection.get("detected"):
+            px = detection["point_x_px"]
+            py = detection["point_y_px"]
+            cv2.circle(frame, (px, py), 10, (0, 0, 255), -1)
+            cv2.putText(frame, "Wrist", (px + 15, py), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
+            # 全キーポイント（青色）
+            if "keypoints" in detection:
+                for kp in detection["keypoints"]:
+                    # kp = [x, y, conf]
+                    if len(kp) >= 2:
+                        cx, cy = int(kp[0]), int(kp[1])
+                        if cx > 0 and cy > 0:
+                            cv2.circle(frame, (cx, cy), 3, (255, 0, 0), -1)
+
+        
+        # 判定ステータス
+        status_text = f"Pos: {tracker_result['position']} ({tracker_result['progress']:.0%})"
+        if tracker_result.get("is_stable"):
+            color = (0, 255, 0)
+        else:
+            color = (0, 255, 255)
+            
+        cv2.putText(frame, status_text, (10, 30), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        
+        # Lock状態
+        if self.gesture_validator.is_locked():
+            cv2.putText(frame, "LOCKED", (10, 60), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
     def on_close(self):
         """App Exit"""
         if getattr(self, "is_exiting", False):
@@ -213,6 +327,11 @@ class ATMController:
 
         self.is_exiting = True
         print("Exiting application...")
+        
+        # Stop vision
+        if hasattr(self, 'async_detector'):
+            self.async_detector.stop()
+            
         try:
             self.play_sound("come-again")
         except Exception:
@@ -224,6 +343,10 @@ class ATMController:
             pygame.mixer.quit()
         except Exception:
             pass
+        
+        if hasattr(self, 'async_detector'):
+            self.async_detector.release()
+            
         self.camera.release()
         self.root.destroy()
         print("Exit complete")

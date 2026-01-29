@@ -8,7 +8,7 @@ class CameraManager:
     カメラの接続、フレーム取得、リソース解放を担当する。
     """
 
-    def __init__(self, device_id=0, width=640, height=480):
+    def __init__(self, device_id=0, width=640, height=480, fps=30):
         """
         初期化メソッド
 
@@ -16,10 +16,12 @@ class CameraManager:
             device_id (int): 使用するカメラのデバイスID
             width (int): 設定する横幅
             height (int): 設定する縦幅
+            fps (int): 設定するフレームレート
         """
         self.device_id = device_id
         self.width = width
         self.height = height
+        self.fps = fps
         self.cap = None
 
     def start(self):
@@ -42,9 +44,10 @@ class CameraManager:
                 print("エラー: 有効なカメラが見つかりませんでした。接続を確認してください。")
                 return
 
-            # 解像度の設定
+            # 解像度とFPSの設定
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+            self.cap.set(cv2.CAP_PROP_FPS, self.fps)
 
             print(f"カメラを開始しました。")
 

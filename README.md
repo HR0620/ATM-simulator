@@ -1,11 +1,17 @@
 # AI-based Touchless Mimic
 >AI-based Touchless Mimic(ATM)は、画像認識技術を活用して、タッチに対応していないディスプレイでもタッチを可能にした次世代ATMです。
 
-![アイコン](docs/images/icon.png)
+<div align="center">
+<img src="docs/images/icon.png" width="200" height="200">
+</div>
 
-[![Python Version](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
+<div align="center">
+
+[![Python Version](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Since](https://img.shields.io/badge/since-2025.12-blue)]()
+[![Since](https://img.shields.io/badge/since-2025.12-blue)](Since)
+
+</div>
 
 ## 制作時期
 
@@ -19,38 +25,37 @@
 
 ### 特徴
 
-最大の特徴は、Webカメラを用いた**ジェスチャー認識技術**です。ユーザーは画面やキーパッドに直接触れることなく、手を「左に出す」「右に出す」「前に出す」といった自然な動作だけで、「振込」「引き出し」「口座作成」といった主要な銀行取引を完結させることができます。
+最大の特徴は、Webカメラを用いた**ジェスチャー認識技術**です。従来の全体的なジェスチャー認識に加え、**指先の位置追跡 (Finger Tracking)** 技術を導入しました。ユーザーは画面に触れることなく、指でボタンを押すという直感的な操作で、「振込」「引き出し」「口座作成」などの取引をスムーズに行えます。
 
-従来のATMでは、タッチパネルやボタンを介した操作が必須でしたが、本システムではこれを完全に排除。病院や公共施設など、衛生面が重視される場所での利用に最適です。また、物理ボタンを使わないことで、スキミングデバイスの設置リスクも大幅に低減できます。
+誤操作防止機能として、**同一方向への連続入力防止**や、**画面上部への誤検知フィルタ**を搭載しており、意図しない操作を極限まで排除しています。
 
 ### 技術要素
 
-AIモデルには**TensorFlow/Keras**を活用し、リアルタイムかつ高精度な認識を実現しました。モデルは Google の **Teachable Machine** を用いて学習されており、9000枚以上の画像データで訓練されています。これにより、様々な照明条件や背景でも安定した認識精度を発揮します。
+AIモデルには、物体検出・骨格推定のデファクトスタンダードである **Ultralytics YOLOv8-Pose** を採用しました。これにより、手の形状だけでなく「手首」や「肘」の座標を高精度に検出し、そこから指先位置をベクトル演算で推論することで、高速かつ正確なポインティングを実現しています。Python 3.13 環境に対応し、非同期推論（Async Inference）によりUIの描画遅延を防いでいます。
 
-顔検出機能には **OpenCV** のHaar Cascadeを採用。ユーザーがカメラの前に立つと自動的に顔を検出し、適切な位置に誘導することで、ジェスチャー認識の精度を向上させています。
+顔検出機能には **OpenCV** のHaar Cascadeを採用し、ユーザーがカメラの前に立つと自動的に顔を検出して適切な位置へ誘導します。
 
-UIは **Tkinter** をベースに構築され、カメラ映像をリアルタイムで背景に表示しながら、半透明のオーバーレイでボタンや情報を描画しています。これにより、ユーザーは自分の手の動きを確認しながら直感的に操作できます。
+UIは **Tkinter** をベースに構築され、カメラ映像をリアルタイムで背景に表示しながら、半透明のオーバーレイで情報を描画しています。
 
 ### 工夫点
 
-ユーザー体験（UX）の向上にも注力しました。操作ごとに直感的な**音声ガイダンス**や効果音（SE）が再生され、画面を見なくても操作の完了や入力を確認できるユニバーサルデザインを採用しています。視覚障害者や高齢者にも配慮した設計です。
+ユーザー体験（UX）の向上に注力しました。操作ごとに直感的な**音声ガイダンス**や効果音（SE）が再生され、画面を見なくても操作の完了を確認できるユニバーサルデザインを採用しています。
 
-ボタンのフィードバックには特にこだわりました。ジェスチャーやマウスでボタンを選択すると、ボタンが実際に「へこむ」ような視覚効果を実装。影の有無とボタン位置のオフセットを組み合わせることで、物理的なボタンを押したような触感をデジタル上で再現しています。
+ボタンのフィードバックには「**Visual Press Effect**」を実装し、ジェスチャーで選択したボタンが物理的に押し込まれたかのような視覚効果（影の移動とオフセット）をデジタル上で再現しています。ユーザーのアクションに対して、視覚と聴覚の両方でフィードバックを行うことで、より直感的で気持ちの良い操作感を実現しました。
 
-セキュリティ面でも、PINコードのソルト付きハッシュ化保存や、連続入力失敗時の口座凍結機能、取引金額の上限設定など、実運用を想定した堅牢な設計を取り入れています。
-
-デザイン面では、視認性の高い配色と大きな文字を採用し、高齢者やデジタル機器に不慣れな方でも迷わず操作できるよう配慮しました。デバッグモードを搭載しており、開発やデモンストレーション時にはAIの認識状況や内部ステータスを可視化することも可能です。
+セキュリティ面では、PINコードのソルト付きハッシュ化保存や、連続入力失敗時のロック機能を実装しています。
 
 ## 必要動作環境
 
-*   **Python 3.10** (必須)
+*   **Python 3.13** 以上 (必須)
 
-    ```bash
-    python --version
-    ```
+```bash
+python --version
+```
 
-    でバージョンを確認してください。
-    [Python 3.10 のインストールはこちら](https://www.python.org/downloads/release/python-31019/)
+でバージョンを確認してください。
+    
+[Python のインストールはこちら](https://www.python.org/downloads/)
 
 *   **Webカメラ**
 *   **Windows 11** 推奨（他のバージョンのWindowsやLinux, macOS では動作を確認していません。）
@@ -58,9 +63,9 @@ UIは **Tkinter** をベースに構築され、カメラ映像をリアルタ�
 
 ## 使用ライブラリ
 
-*   tensorflow == 2.15.0
-*   opencv-python == 4.9.0.80
-*   numpy == 1.26.4
+*   ultralytics
+*   opencv-python
+*   numpy
 *   pillow
 *   pygame
 *   pyyaml
@@ -70,12 +75,12 @@ UIは **Tkinter** をベースに構築され、カメラ映像をリアルタ�
 
 ### バイナリダウンロード（推奨）
 
-最新版: [Releases](https://github.com/akino-nanakusa/ATM-simulator/releases/latest)
+最新版: [Releases](https://github.com/HR0620/ATM-simulator/releases/latest)
 
 <details>
 <summary><b>Windows</b></summary>
 
-[Releasesページ](https://github.com/akino-nanakusa/ATM-simulator/releases/latest)から `ATM-simulator.zip` をダウンロードし、解凍して実行してください。
+[Releasesページ](https://github.com/HR0620/ATM-simulator/releases/latest)から `ATM-simulator.zip` をダウンロードし、解凍して実行してください。
 
 > **注意**: Windows Defenderの警告が出る場合は「詳細情報」→「実行」をクリック
 </details>
@@ -83,10 +88,10 @@ UIは **Tkinter** をベースに構築され、カメラ映像をリアルタ�
 ### ソースからビルド
 
 ```bash
-git clone https://github.com/akino-nanakusa/ATM-simulator.git
+git clone https://github.com/HR0620/ATM-simulator.git
 cd ATM-simulator
 python -m venv venv
-source venv/bin/activate
+venv\Scripts\activate
 pip install -r requirements.txt
 python run.py
 ```
@@ -101,11 +106,11 @@ python run.py
 
 ### メインメニュー
 
-ジェスチャー操作で「振り込み」「引き出し」「口座作成」を選択します。
+指先操作で「振り込み」「引き出し」「口座作成」を選択します。
 
 ![メインメニュー](docs/images/menu.png)
 
-###  暗証番号入力
+### 暗証番号入力
 
 キーボードを使用して暗証番号を入力します。
 
@@ -128,17 +133,16 @@ python run.py
 ```
 .
 ├── src/                # ソースコード
-│   ├── ai/             # AIロジック（モデルロード・推論）
 │   ├── core/           # アプリ制御（コントローラー・状態管理）
 │   ├── ui/             # 画面描画（Tkinter）
-│   ├── vision/         # カメラ処理（OpenCV）
+│   ├── vision/         # カメラ処理・AI (YOLOv8/OpenCV)
 │   └── main.py         # アプリ本体
 ├── resources/          # 外部リソース（ビルド時コピー対象）
 │   ├── assets/         # 画像・音声
-│   ├── config/         # 設定 (atm_config.yml, 顔検出用XML)
-│   ├── model/          # AIモデル
+│   ├── config/         # 設定 (atm_config.yml)
+│   ├── model/          # AIモデル (yolov8n-pose.pt)
 │   └── icon.ico        # アプリアイコン
-├── scripts/            # ビルド用スクリプト (clean_and_build.py 等)
+├── scripts/            # ビルド用スクリプト
 ├── docs/               # ドキュメント用画像など
 ├── data/               # 運用データ（口座情報等 / gitignore対象）
 ├── tools/              # 開発補助・デバッグツール
@@ -182,29 +186,18 @@ A: `./resources/config` フォルダ内の `atm_config.yml` です。編集す�
 <details>
 <summary>
 <b>
-Q: 左のボタンを選択しているのに、他のボタンが反応してしまいます。
+Q: 意図しない方向にカーソルが動いてしまいます。
 </b>
 </summary>
 
-A: 背景に **肌の色に近い（特に薄橙色など）** のものがあると、AIが誤認識してしまうことがあります。背景をシンプルにするか、照明を調整して試してみてください。
+A: YOLOv8-Pose モデルを使用していますが、背景に複雑な模様や人物のような形状があると誤認識する場合があります。また、手が画面の端に近すぎたり、照明が暗すぎると認識精度が低下します。
 
-また、あらゆる場面に対応するため **9000枚** ほどの画像を用いて学習済みではありますが、自分専用にチューニングしたモデルを使用したい場合は、以下の手順でモデルを差し替えることが可能です。
-
-1. [Teachable Machine](https://teachablemachine.withgoogle.com/) にアクセスし、「使ってみる」をクリック
-2. 「画像プロジェクト」→「標準画像モデル」を選択
-3. クラス名をそれぞれ 「**left**」「**center**」「**right**」「**free**」 に書き換える
-4. 各クラスに自身のジェスチャーを学習させる（「free」には操作以外の平常時の状態を学習させてください）
-   
-   ![teachable machine](docs/images/train.png)
-5. 「**トレーニング**」をクリックし、「**プレビュー**」で動作を確認する
-6. 「**モデルをエクスポートする**」をクリックし、「**Tensorflow**」タブから「**モデルをダウンロードする**」を選択
-7. ダウンロードした zip ファイルを解凍し、中の 「**keras_model.h5**」 を `./resources/model/` に上書き保存する
-8. アプリを再起動し、動作を確認する
+設定ファイルの `vision` セクションで `min_detection_confidence`（信頼度閾値）を上げることで、誤検出を減らすことが可能です。
 </details>
 
 ### その他の問題
 
-[Issues](https://github.com/akino-nanakusa/ATM-simulator/issues) で質問・報告してください。
+[Issues](https://github.com/HR0620/ATM-simulator/issues) で質問・報告してください。
 
 ## ライセンス
 
@@ -212,4 +205,4 @@ MIT ライセンス - 詳細は [LICENSE](LICENSE) を参照してください�
 
 ---
 
-Made by [秋乃七草 (Akino Nanakusa)](https://github.com/akino-nanakusa)
+Made by [Renju (HR0620)](https://github.com/HR0620)

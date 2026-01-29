@@ -123,9 +123,8 @@ def check_dependencies(splash):
         time.sleep(0.5)  # 演出用
 
         splash.update_status("AI", 40)
-        # TensorFlowは重いのでスプラッシュ表示中に読み込む
-        import tensorflow as tf
-        tf.get_logger().setLevel('ERROR')
+        # YOLO (Ultralytics)のロード check
+        import ultralytics
         time.sleep(0.5)
 
         splash.update_status("CORE", 70)
@@ -145,7 +144,7 @@ def check_dependencies(splash):
             hint = "AVX"
         elif "DLL" in error_str or "ImportError" in error_str:
             hint = "DLL"
-        elif "h5" in error_str or "model" in error_str:
+        elif "ultralytics" in error_str or "torch" in error_str:
             hint = "MODEL"
 
         splash.show_error(f"システム起動エラー:\n{error_str}", hint)

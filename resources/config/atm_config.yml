@@ -2,11 +2,7 @@ camera:
   device_id: 0       # カメラのデバイスID（通常は0。外付けなら1の場合あり）
   width: 960         # カメラの横幅解像度
   height: 720        # カメラの縦幅解像度
-  fps: 45            # フレームレート
-
-model:
-  path: "model/keras_model.h5"     # Kerasモデルファイルのパス
-  labels_path: "model/labels.txt"  # ラベル定義ファイルのパス
+  fps: 60            # フレームレート
 
 ui:
   window_width: 1024               # アプリウィンドウの幅
@@ -16,18 +12,35 @@ ui:
 
 face_guide:
   required_duration: 1.0           # 認証に必要な継続時間（秒）
-  guide_box_ratio: 0.6             # 画面に対するガイド枠の比率
+  guide_box_ratio: 0.1             # 画面に対するガイド枠の比率
   colors:
     waiting: "#FFFFFF"             # 待機中（白）
     detecting: "#FFD700"           # 認識中（黄色）
     confirmed: "#00FF00"           # 完了（緑）
 
+vision:
+  model_type: "yolov8_pose"
+  model_path: "resources/model/yolov8n-pose.pt" # 自動ダウンロードされます
+  min_detection_confidence: 0.5
+  use_async: true
+  inference_interval: 0.03
+  debug_overlay: false
+
 gesture:
-  confidence_threshold: 0.85       # AIの確信度しきい値
-  required_frames: 7               # ジェスチャー確定に必要な連続フレーム数
-  free_class_name: "free"          # 「何もしていない」を表すクラス名
-  use_ema: true                    # 指数移動平均(EMA)による平滑化を使用するか
-  ema_alpha: 0.4                   # EMAの平滑化係数 (0.0 < alpha <= 1.0)
+  required_frames: 8
+  confidence_threshold: 0.5
+  free_class_name: "free"
+
+safety:
+  head_zone_ratio: 0.1
+  min_person_area: 0.01
+  max_persons: 2
+
+position:
+  required_consecutive: 5    # ジェスチャー確定に必要な連続フレーム数
+  free_threshold: 5          # freeと判定するまでの未検出フレーム数
+  left_threshold: 0.333
+  right_threshold: 0.667
 
 security:
   pin_salt: "CHANGE_THIS_IN_PRODUCTION" # PINハッシュ用ソルト

@@ -9,7 +9,9 @@ ATM UI モジュール
 import tkinter as tk
 from PIL import Image, ImageTk
 import cv2
+import os
 from src.ui.styles import Colors, Fonts, Layout as StyleLayout
+from src.paths import get_resource_path
 
 
 class Layout:
@@ -46,11 +48,24 @@ class ATMUI:
         # クリックフィードバック用
         self._clicked_zone = None
         self._click_feedback_timer = None
+        
+        # 画像リソース
+        self.bow_image = None
+        self._load_images()
 
         # レイアウト計算
         self._calculate_layout()
 
         self._state_data = {}
+
+    def _load_images(self):
+        """画像リソース読み込み"""
+        try:
+            path = get_resource_path("assets/images/bow.png")
+            if (os.path.exists(path)):
+                self.bow_image = Image.open(path)
+        except Exception as e:
+            print(f"画像読み込みエラー: {e}")
 
     def _calculate_layout(self):
         """現在のウィンドウサイズに基づいてレイアウトを計算"""
@@ -396,6 +411,8 @@ class ATMUI:
             self._draw_face_align_overlay()
         elif mode == "result":
             self._draw_result_overlay()
+        elif mode == "exit":
+            self._draw_exit_overlay()
 
     def _draw_menu_overlay(self):
         """メインメニュー"""
@@ -731,6 +748,39 @@ class ATMUI:
         self.canvas.create_text(
             cx, cy, text=display_text, fill="white",
             font=("Meiryo UI", 18, "bold"), justify=tk.CENTER, tags="overlay"
+        )
+
+    def _draw_exit_overlay(self):
+        """終了画面 (お辞儀)"""
+        cx = self.main_width // 2
+        cy = self.height // 2
+
+        # 背景 (黒)
+        self.canvas.create_rectangle(
+            0, 0, self.main_width, self.height,
+            fill="black", tags="overlay"
+        )
+        
+        # bow.png 表示
+        if self.bow_image:
+            # アスペクト比維持でリサイズ (高さの50%程度)
+            target_h = int(self.height * 0.5)
+            aspect = self.bow_image.width / self.bow_image.height
+            target_w = int(target_h * aspect)
+            
+            resized = self.bow_image.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            self._photo_bow = ImageTk.PhotoImage(resized)
+            
+            self.canvas.create_image(
+                cx, cy, image=self._photo_bow, tags="overlay"
+            )
+
+        # テキスト (かぶらないように下部に配置)
+        self.canvas.create_text(
+            cx, self.height - 100,
+            text="ご利用ありがとうございました",
+            fill="white", font=("Meiryo UI", 28, "bold"),
+            justify=tk.CENTER, tags="overlay"
         )
 
     def _draw_face_align_overlay(self):
