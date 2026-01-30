@@ -63,13 +63,12 @@ python --version
 
 ## 使用ライブラリ
 
-*   ultralytics
-*   opencv-python
-*   numpy
-*   pillow
-*   pygame
-*   pyyaml
-*   h5py
+* numpy
+* opencv-python
+* Pillow
+* PyYAML
+* pygame
+* ultralytics
 
 ## インストール
 
@@ -208,8 +207,7 @@ A: 本システムは、手首の位置によってどこのボタンを押し�
 <details>
 <summary>
 <b>
-
-Q: `python run.py` でエラーが出て実行できません。
+Q: python run.py で実行してもエラーが出て実行できません。
 </b>
 </summary>
 
@@ -229,8 +227,7 @@ A: 主に以下の3点について、お使いの環境を確認してくださ�
 3. **カメラデバイスとアクセス権限**:
    * Webカメラが正しく接続され、他のアプリケーション（ZoomやTeamsなど）で使用中でないことを確認してください。また、Windows の「設定 > プライバシーとセキュリティ > カメラ」で、アプリによるカメラへのアクセスが許可されている必要があります。
 
-> [!TIP]
-> 環境構築で問題が解決しない場合は、[Releases ページ](https://github.com/HR0620/ATM-simulator/releases/latest) から提供しているビルド済みのパッケージ（**EXE版**）を利用することをお勧めします。これにより、Python の環境構築なしで即座にアプリを起動できます。
+>環境構築で問題が解決しない場合は、[Releases ページ](https://github.com/HR0620/ATM-simulator/releases/latest) から提供しているビルド済みのパッケージ（**EXE版**）を利用することをお勧めします。これにより、Python の環境構築なしで即座にアプリを起動できます。
 </details>
 
 ### その他の問題
