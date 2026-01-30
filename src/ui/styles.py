@@ -36,6 +36,12 @@ class Colors:
     DEBUG_HEADER = "#0d0d1a"
     DEBUG_ACCENT = "#00aaff"
 
+    # ガイダンスバー（実機ATM風）
+    GUIDANCE_BG = "#f2f2f2"        # 明るいグレー
+    GUIDANCE_FG = "#333333"        # 濃いグレー
+    GUIDANCE_ERROR_BG = "#fdecea"  # 薄い赤
+    GUIDANCE_ERROR_FG = "#a80000"  # 暗い赤
+
     # ボタン用色マッピング
     BUTTON = {
         "left": {"bg": "#005bb5", "fg": WHITE, "pressed": "#003d7a"},

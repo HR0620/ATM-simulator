@@ -48,16 +48,17 @@ class ATMUI:
         # クリックフィードバック用
         self._clicked_zone = None
         self._click_feedback_timer = None
-        
+
         # 画像リソース
         self.bow_image = None
         self._load_images()
-        
+
         # ガイダンス表示用
         self._guidance_text = ""
         self._guidance_timer = None
         self._last_guidance_time = 0
         self._guidance_cooldown = 2.0  # 2秒間隔
+        self._guidance_is_error = False
 
         # レイアウト計算
         self._calculate_layout()
@@ -176,13 +177,13 @@ class ATMUI:
 
             self._click_feedback_timer = self.root.after(150, execute_callback)
 
-    def render_frame(self, frame, state_data: dict = None):
+    def render_frame(self, frame, state_data: dict | None = None):
         if state_data:
             self._state_data = state_data
 
         # 背景クリア
         self.canvas.delete("all")
-        
+
         # ガイダンス表示の自動クリア（もしあれば）
         # (タイマーで管理されるが念のため描画前に状態確認)
 
@@ -297,7 +298,7 @@ class ATMUI:
             # 信頼度
             self.canvas.create_text(
                 x + 10, y_pos, anchor=tk.NW,
-                text=f"信頼度: {confidence*100:.1f}%",
+                text=f"信頼度: {confidence * 100:.1f}%",
                 fill="#aaaaaa", font=("Meiryo UI", 9), tags="overlay"
             )
             y_pos += 18
@@ -333,7 +334,7 @@ class ATMUI:
             )
             # パーセント表示
             self.canvas.create_text(
-                x + w // 2, y_pos + 9, text=f"{progress*100:.0f}%",
+                x + w // 2, y_pos + 9, text=f"{progress * 100:.0f}%",
                 fill="white", font=("Consolas", 10, "bold"), tags="overlay"
             )
         y_pos += 35
@@ -422,7 +423,7 @@ class ATMUI:
             self._draw_result_overlay()
         elif mode == "exit":
             self._draw_exit_overlay()
-            
+
         # ガイダンスがあれば最前面に描画
         if self._guidance_text:
             self._draw_guidance_overlay()
@@ -472,7 +473,8 @@ class ATMUI:
             offset = press_offset
             self.canvas.create_rectangle(
                 bx1 + offset, by1 + offset, bx2 + offset, by2 + offset,
-                fill=pressed_bg, stipple="gray50", outline="#ffffff", width=2, tags="overlay"
+                fill=pressed_bg, stipple="gray50",
+                outline=Colors.WHITE, width=2, tags="overlay"
             )
             cx, cy = (bx1 + bx2) // 2 + offset, (by1 + by2) // 2 + offset
         else:
@@ -480,11 +482,12 @@ class ATMUI:
             self.canvas.create_rectangle(
                 bx1 + shadow_offset, by1 + shadow_offset,
                 bx2 + shadow_offset, by2 + shadow_offset,
-                fill="#000000", stipple="gray50", outline="", tags="overlay"
+                fill=Colors.BLACK, stipple="gray50", outline="", tags="overlay"
             )
             self.canvas.create_rectangle(
                 bx1, by1, bx2, by2,
-                fill=bg, stipple="gray50", outline="#ffffff", width=2, tags="overlay"
+                fill=bg, stipple="gray50",
+                outline=Colors.WHITE, width=2, tags="overlay"
             )
             cx, cy = (bx1 + bx2) // 2, (by1 + by2) // 2
 
@@ -689,7 +692,7 @@ class ATMUI:
             self.canvas.create_rectangle(
                 x + offset, y + offset, x + w + offset, y + h + offset,
                 fill=color, stipple="gray50",
-                outline="#ffffff", width=2, tags="overlay"
+                outline=Colors.WHITE, width=2, tags="overlay"
             )
             self.canvas.create_text(
                 x + w // 2 + offset, y + h // 2 + offset, text=label,
@@ -699,7 +702,8 @@ class ATMUI:
             if progress > 0:
                 gw = w * progress
                 self.canvas.create_rectangle(
-                    x + offset, y + h - 6 + offset, x + gw + offset, y + h + offset,
+                    x + offset, y + h - 6 + offset,
+                    x + gw + offset, y + h + offset,
                     fill=Colors.SUCCESS, tags="overlay"
                 )
         else:
@@ -707,12 +711,12 @@ class ATMUI:
             self.canvas.create_rectangle(
                 x + shadow_offset, y + shadow_offset,
                 x + w + shadow_offset, y + h + shadow_offset,
-                fill="#000000", stipple="gray50", outline="", tags="overlay"
+                fill=Colors.BLACK, stipple="gray50", outline="", tags="overlay"
             )
             self.canvas.create_rectangle(
                 x, y, x + w, y + h,
                 fill=color, stipple="gray50",
-                outline="#ffffff", width=2, tags="overlay"
+                outline=Colors.WHITE, width=2, tags="overlay"
             )
             self.canvas.create_text(
                 x + w // 2, y + h // 2, text=label,
@@ -750,7 +754,7 @@ class ATMUI:
         self.canvas.create_rectangle(
             cx - box_w // 2, cy - box_h // 2, cx + box_w // 2, cy + box_h // 2,
             fill=bg, stipple="gray50",
-            outline="#ffffff", width=3, tags="overlay"
+            outline=Colors.WHITE, width=3, tags="overlay"
         )
 
         # メッセージとカウントダウンをまとめて描画（中央揃え）
@@ -773,17 +777,19 @@ class ATMUI:
             0, 0, self.main_width, self.height,
             fill="black", tags="overlay"
         )
-        
+
         # bow.png 表示
         if self.bow_image:
             # アスペクト比維持でリサイズ (高さの50%程度)
             target_h = int(self.height * 0.5)
             aspect = self.bow_image.width / self.bow_image.height
             target_w = int(target_h * aspect)
-            
-            resized = self.bow_image.resize((target_w, target_h), Image.Resampling.LANCZOS)
+
+            resized = self.bow_image.resize(
+                (target_w, target_h), Image.Resampling.LANCZOS
+            )
             self._photo_bow = ImageTk.PhotoImage(resized)
-            
+
             self.canvas.create_image(
                 cx, cy, image=self._photo_bow, tags="overlay"
             )
@@ -802,7 +808,7 @@ class ATMUI:
 
         cx = self.main_width // 2
         cy = self.height // 2
-        
+
         # 表示用枠サイズ (キャンバスサイズから計算して中央固定を保証)
         v_ratio = self.config["face_guide"].get("visual_box_ratio", 0.4)
         v_size = int(self.height * v_ratio)
@@ -814,7 +820,7 @@ class ATMUI:
         width = 2
 
         if face_result:
-            status = face_result[0] # (status, visual_box, face_rect)
+            status = face_result[0]  # (status, visual_box, face_rect)
             if status == "detecting":
                 color = "#ffff00"
                 width = 4
@@ -846,7 +852,7 @@ class ATMUI:
                 fill=color, font=("Meiryo UI", 24, "bold"), tags="overlay"
             )
 
-    def show_guidance(self, text):
+    def show_guidance(self, text, is_error=False):
         """ガイダンスメッセージを一時的に表示 (レート制限あり)"""
         import time
         now = time.time()
@@ -855,34 +861,48 @@ class ATMUI:
             return
 
         self._guidance_text = text
+        self._guidance_is_error = is_error
         self._last_guidance_time = now
-        
+
         if self._guidance_timer:
             self.root.after_cancel(self._guidance_timer)
-        
-        self._guidance_timer = self.root.after(2000, self._clear_guidance)
+
+        self._guidance_timer = self.root.after(3000, self._clear_guidance)
 
     def _clear_guidance(self):
         self._guidance_text = ""
+        self._guidance_is_error = False
         self._guidance_timer = None
 
     def _draw_guidance_overlay(self):
-        """画面下部にガイダンスを表示 (ユニバーサルデザイン対応)"""
+        """画面下部にガイダンスを表示 (実機ATM風デザイン)"""
         cx = self.main_width // 2
         cy = self.height - 100
-        
-        # 背景 (より目立つようにサイズ調整)
-        tw = 700 # 横幅拡大
-        th = 60  # 厚み増加
+
+        # 色設定
+        if self._guidance_is_error:
+            bg = Colors.GUIDANCE_ERROR_BG
+            fg = Colors.GUIDANCE_ERROR_FG
+            border = Colors.ERROR
+        else:
+            bg = Colors.GUIDANCE_BG
+            fg = Colors.GUIDANCE_FG
+            border = Colors.LIGHT_GRAY
+
+        # 背景 (シンプルかつ高品質なボックス)
+        tw = 750
+        th = 70
+
+        # ボックスの描画
         self.canvas.create_rectangle(
-            cx - tw//2, cy - th//2, cx + tw//2, cy + th//2,
-            fill="#000000", stipple="gray75", outline="cyan", width=2, tags="overlay"
+            cx - tw // 2, cy - th // 2, cx + tw // 2, cy + th // 2,
+            fill=bg, outline=border, width=1, tags="overlay"
         )
-        
-        # テキスト (サイズ拡大 12 -> 20)
+
+        # テキスト (落ち着いたフォントと色)
         self.canvas.create_text(
             cx, cy, text=f"{self._guidance_text}",
-            fill="cyan", font=("Meiryo UI", 20, "bold"), tags="overlay"
+            fill=fg, font=("Meiryo UI", 20, "bold"), tags="overlay"
         )
 
     def _draw_guides(self):
@@ -926,7 +946,7 @@ class ATMUI:
             self.canvas.create_rectangle(
                 x1 + offset, y1 + offset, x2 + offset, y2 + offset,
                 fill=color, stipple="gray50",
-                outline="#ffffff", width=2, tags="overlay"
+                outline=Colors.WHITE, width=2, tags="overlay"
             )
             self.canvas.create_text(
                 (x1 + x2) // 2 + offset, (y1 + y2) // 2 + offset, text=text,
@@ -935,7 +955,8 @@ class ATMUI:
             if progress > 0:
                 gw = w * progress
                 self.canvas.create_rectangle(
-                    x1 + offset, y2 - 5 + offset, x1 + gw + offset, y2 + offset,
+                    x1 + offset, y2 - 5 + offset,
+                    x1 + gw + offset, y2 + offset,
                     fill=Colors.SUCCESS, tags="overlay"
                 )
         else:
@@ -947,7 +968,7 @@ class ATMUI:
             )
             self.canvas.create_rectangle(
                 x1, y1, x2, y2, fill=color, stipple="gray50",
-                outline="#ffffff", width=2, tags="overlay"
+                outline=Colors.WHITE, width=2, tags="overlay"
             )
             self.canvas.create_text(
                 (x1 + x2) // 2, (y1 + y2) // 2, text=text,

@@ -9,6 +9,7 @@ ATM States モジュール (リファクタリング版)
 """
 from src.core.state_machine import State
 from src.core.input_handler import InputBuffer
+from src.core.pin_validator import is_valid_pin
 
 
 # =============================================================================
@@ -20,7 +21,7 @@ class BaseInputState(State):
 
     # サブクラスでオーバーライド
     INPUT_MAX = 6
-    MIN_INPUT_LENGTH = 1 # 最小入力長 (確認時のバリデーション用)
+    MIN_INPUT_LENGTH = 1  # 最小入力長
     ALIGN_RIGHT = False
     HEADER = ""
     MESSAGE = ""
@@ -51,24 +52,26 @@ class BaseInputState(State):
         self.controller.change_state(MenuState)
 
     def _confirm_input(self):
-        """入力確定操作の一元管理 (音・バリデーション・ガイダンス)"""
+        """入力確定操作の一元管理"""
         value = self.input_buffer.get_value()
         if len(value) >= self.MIN_INPUT_LENGTH:
             # 音声再生は _on_input_complete 内で条件に応じて行う
             self._on_input_complete(value)
         else:
-            self.controller.ui.show_guidance(self.GUIDANCE_EMPTY)
+            self.controller.ui.show_guidance(
+                self.GUIDANCE_EMPTY, is_error=True
+            )
             self.controller.play_beep_se()
 
     def _on_input_complete(self, value):
-        """入力完了時の処理 - サブクラスでオーバーライド"""
+        """入力完了時の処理"""
         pass
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
-        
+
         guides = {"left": "進む", "right": "戻る"}
-        
+
         self.controller.ui.render_frame(frame, {
             "mode": "input",
             "header": self.HEADER,
@@ -86,14 +89,16 @@ class BaseInputState(State):
         if gesture == "right":
             self._on_back()
             return
-            
+
         if gesture == "left":
             self._confirm_input()
             return
 
         # Center ガイダンス
         if gesture == "center":
-            self.controller.ui.show_guidance("「進む」 または 「戻る」 を選択してください")
+            self.controller.ui.show_guidance(
+                "「進む」または「戻る」を選択してください"
+            )
             return
 
         if key_event:
@@ -120,19 +125,19 @@ class BaseInputState(State):
 
         if key_event.keysym == "BackSpace":
             if self.input_buffer.backspace():
-                self.controller.play_cancel_se() # 削除成功時は cancel.mp3
+                self.controller.play_cancel_se()  # 削除成功
             else:
-                self.controller.play_beep_se() # 空なら beep.mp3
+                self.controller.play_beep_se()  # 空なら beep.mp3
         elif key_event.keysym == "Return":
             self._confirm_input()
         elif key_event.keysym == "Escape":
             self._on_back()
         else:
             # その他無効キー
-            if not char.isprintable() or char == "": # 制御キー等は無視
-                 pass
+            if not char.isprintable() or char == "":  # 制御キー等は無視
+                pass
             else:
-                 self.controller.play_beep_se()
+                self.controller.play_beep_se()
 
 
 # =============================================================================
@@ -163,7 +168,7 @@ class FaceAlignmentState(State):
             })
 
             if key_event:
-                self.controller.play_beep_se() # 顔認識画面でのキーボード入力は一律beep
+                self.controller.play_beep_se()  # 顔認識画面でのキーボード入力は一律beep
 
             if status == "confirmed":
                 # 起動音 → いらっしゃいませの前
@@ -232,14 +237,14 @@ class MenuState(State):
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
         if key_event:
-            self.controller.play_beep_se() # メニュー画面でのキーボード入力は一律beep
+            self.controller.play_beep_se()  # メニュー画面でのキーボード入力は一律beep
 
         self.controller.ui.render_frame(frame, {
             "mode": "menu",
             "header": "メインメニュー",
             "buttons": [
-                {"zone": "left", "label": "振り込み"},
-                {"zone": "center", "label": "引き出し"},
+                {"zone": "left", "label": "お振り込み"},
+                {"zone": "center", "label": "お引き出し"},
                 {"zone": "right", "label": "口座作成"},
             ],
             "progress": progress,
@@ -250,9 +255,9 @@ class MenuState(State):
         if gesture:
             self._start_idle_timer()
             self._handle_selection(gesture)
-        
+
         if key_event:
-            self.controller.play_beep_se() # メニュー画面でのキーボード入力は一律beep
+            self.controller.play_beep_se()  # メニュー画面でのキーボード入力は一律beep
 
 
 class ResultState(State):
@@ -266,8 +271,8 @@ class ResultState(State):
         msg = self.controller.shared_context.get("result_message", "")
 
         if is_error:
-            # 重大エラー（凍結、存在しない、システムエラー）は assert, それ以外は incorrect
-            if "凍結" in msg or "存在しない" in msg or "エラー" in msg or "失敗" in msg:
+            # 重大エラーは assert, それ以外は incorrect
+            if any(x in msg for x in ["凍結", "存在しない", "エラー", "失敗"]):
                 self.controller.play_sound("assert", force=True)
             else:
                 self.controller.play_sound("incorrect", force=True)
@@ -289,7 +294,8 @@ class ResultState(State):
     def _tick(self):
         self.countdown -= 1
         if self.countdown <= 0:
-            self.controller.change_state(MenuState) # ホームに直接戻る (FaceAlignmentは一瞬でも経由しない)
+            # 直接ホーム画面に戻る（FaceAlignmentを経由しない）
+            self.controller.change_state(MenuState)
         else:
             self.controller.root.after(1000, self._tick)
 
@@ -319,9 +325,9 @@ class TransferTargetInputState(BaseInputState):
     INPUT_MAX = 6
     MIN_INPUT_LENGTH = 6
     ALIGN_RIGHT = False
-    HEADER = "振込先口座番号"
+    HEADER = "お振り込み"
     MESSAGE = "振込先の口座番号を入力してください"
-    GUIDANCE_EMPTY = "口座番号は6桁入力してください"
+    GUIDANCE_EMPTY = "口座番号を6桁で入力してください"
 
     def _on_input_complete(self, value):
         if len(value) == 6:
@@ -329,21 +335,25 @@ class TransferTargetInputState(BaseInputState):
 
             # 口座存在チェック
             if am.get_account_name(value) is None:
-                self.controller.play_assert_se() # 口座間違いは assert.mp3
+                self.controller.play_assert_se()  # 口座間違いは assert.mp3
                 self.controller.shared_context["is_error"] = True
-                self.controller.shared_context["result_message"] = "口座が存在しません"
+                self.controller.shared_context["result_message"] = (
+                    "ご入力いただいた口座番号はお取り扱いできません。"
+                )
                 self.controller.change_state(ResultState)
                 return
 
             # 口座凍結チェック
             if am.is_frozen(value):
-                self.controller.play_assert_se() # 凍結も assert.mp3
+                self.controller.play_assert_se()  # 凍結も assert.mp3
                 self.controller.shared_context["is_error"] = True
-                self.controller.shared_context["result_message"] = "該当口座は凍結されています"
+                self.controller.shared_context["result_message"] = (
+                    "こちらの口座は現在ご利用いただけません。"
+                )
                 self.controller.change_state(ResultState)
                 return
 
-            self.controller.play_button_se() # 成功時のみ button.mp3
+            self.controller.play_button_se()  # 成功時のみ button.mp3
             self.controller.shared_context["target_account"] = value
             self.controller.change_state(GenericAmountInputState)
 
@@ -361,15 +371,20 @@ class GenericAmountInputState(BaseInputState):
     def on_enter(self, prev_state=None):
         super().on_enter(prev_state)
         txn = self.controller.shared_context.get("transaction")
+        if txn is None:
+            self.controller.change_state(MenuState)
+            return
         if txn == "withdraw":
             self.controller.play_sound("please-select")
             # 引出時は残高を表示
             acct = self.controller.shared_context.get("account_number")
             balance = self.controller.account_manager.get_balance(acct)
-            self.MESSAGE = f"金額を入力してください\n残高：{balance}円"
+            self.MESSAGE = (
+                f"金額を入力してください\n現在の貯蓄残高：{balance}円"
+            )
         else:
             self.controller.play_sound("pay-money")
-            self.MESSAGE = "金額を入力してください"
+            self.MESSAGE = "振込金額を入力してください"
 
     def _on_input_complete(self, value):
         if len(value) >= 1:
@@ -400,7 +415,7 @@ class ConfirmationState(State):
             self.controller.play_button_se()
             self._execute_transaction()
         elif zone == "right":
-            self.controller.play_back_se() # 「いいえ/戻る」は back.mp3
+            self.controller.play_back_se()  # 「いいえ/戻る」は back.mp3
             self.controller.change_state(MenuState)
 
     def update(self, frame, gesture, key_event=None, progress=0,
@@ -424,31 +439,40 @@ class ConfirmationState(State):
             return
 
         if gesture == "right":
-            self.controller.play_back_se() # いいえ/戻るは back.mp3
+            self.controller.play_back_se()  # いいえ/戻るは back.mp3
             self.controller.change_state(MenuState)
             return
 
         if gesture == "center":
-            self.controller.ui.show_guidance("「はい」 か 「いいえ」 を選択してください")
+            self.controller.ui.show_guidance(
+                "「はい」または「いいえ」を選択してください"
+            )
 
     def _build_message(self, txn):
         ctx = self.controller.shared_context
         if txn == "transfer":
             target = ctx.get("target_account")
             amt = ctx.get("amount")
-            return f"口座番号 : {target}\n振込金額: {amt}円\n\nよろしいですか？"
+            return (
+                f"振込先口座 : {target}\n"
+                f"振込金額 : {amt}円\n\nよろしいですか？"
+            )
         elif txn == "withdraw":
             amt = ctx.get("amount")
-            return f"引出金額 : {amt}円\n\nよろしいですか？"
+            return f"引き出し金額 : {amt}円\n\nよろしいですか？"
         elif txn == "create_account":
             name = ctx.get("name")
             return f"お名前 : {name}\n\nこの内容で作成しますか？"
         return ""
 
     def _execute_transaction(self):
-        txn = self.controller.shared_context.get("transaction")
-        am = self.controller.account_manager
         ctx = self.controller.shared_context
+        txn = ctx.get("transaction")
+        if txn is None:
+            self.controller.change_state(MenuState)
+            return
+
+        am = self.controller.account_manager
 
         msg = ""
         is_error = False
@@ -468,7 +492,10 @@ class ConfirmationState(State):
             if success:
                 # 引き出し後の残高を表示
                 new_balance = am.get_balance(acct)
-                msg = f"引き出し完了\n引き出し後残高：{new_balance}円"
+                msg = (
+                    "お引き出しが完了しました。\n"
+                    f"引き出し後残高：{new_balance}円"
+                )
             is_error = not success
 
         elif txn == "create_account":
@@ -476,7 +503,7 @@ class ConfirmationState(State):
             pin = ctx.get("pin")
             new_acct = am.create_account(name, pin, initial_balance=1000)
             msg = f"口座を作成しました。\n\n" \
-                  f"口座番号 : {new_acct}\n\n"
+                f"口座番号 : {new_acct}\n\n"
             is_account_created = True
 
         ctx["result_message"] = msg
@@ -494,9 +521,9 @@ class WithdrawAccountInputState(BaseInputState):
     INPUT_MAX = 6
     MIN_INPUT_LENGTH = 6
     ALIGN_RIGHT = False
-    HEADER = "引き出し"
+    HEADER = "お引き出し"
     MESSAGE = "口座番号を入力してください"
-    GUIDANCE_EMPTY = "口座番号は6桁入力してください"
+    GUIDANCE_EMPTY = "口座番号を6桁で入力してください"
 
     def _on_input_complete(self, value):
         if len(value) == 6:
@@ -504,21 +531,25 @@ class WithdrawAccountInputState(BaseInputState):
 
             # 口座存在チェック
             if am.get_account_name(value) is None:
-                self.controller.play_assert_se() # 口座間違いは assert.mp3
+                self.controller.play_assert_se()  # 口座間違いは assert.mp3
                 self.controller.shared_context["is_error"] = True
-                self.controller.shared_context["result_message"] = "口座が存在しません"
+                self.controller.shared_context["result_message"] = (
+                    "ご入力いただいた口座番号はお取り扱いできません。"
+                )
                 self.controller.change_state(ResultState)
                 return
 
             # 口座凍結チェック
             if am.is_frozen(value):
-                self.controller.play_assert_se() # 凍結も assert.mp3
+                self.controller.play_assert_se()  # 凍結も assert.mp3
                 self.controller.shared_context["is_error"] = True
-                self.controller.shared_context["result_message"] = "該当口座は凍結されています"
+                self.controller.shared_context["result_message"] = (
+                    "こちらの口座は現在ご利用いただけません。"
+                )
                 self.controller.change_state(ResultState)
                 return
 
-            self.controller.play_button_se() # 成功時のみ button.mp3
+            self.controller.play_button_se()  # 成功時のみ button.mp3
             self.controller.shared_context["account_number"] = value
             self.controller.change_state(PinInputState)
 
@@ -529,11 +560,18 @@ class PinInputState(BaseInputState):
     MIN_INPUT_LENGTH = 4
     ALIGN_RIGHT = False
     HEADER = "暗証番号入力"
-    GUIDANCE_EMPTY = "暗証番号は4桁入力してください"
+    GUIDANCE_EMPTY = "暗証番号を4桁で入力してください"
 
     def on_enter(self, prev_state=None):
+        txn = self.controller.shared_context.get("transaction")
+        if txn is None:
+            self.controller.change_state(MenuState)
+            return
+
         self.controller.pin_pad.reset_random_mapping()
-        self.input_buffer = InputBuffer(max_length=4, is_pin=True, digit_only=True)
+        self.input_buffer = InputBuffer(
+            max_length=4, is_pin=True, digit_only=True
+        )
         self.controller.ui.set_click_callback(self._on_click)
         self._message = self._get_message()
 
@@ -546,7 +584,7 @@ class PinInputState(BaseInputState):
                 return "設定する暗証番号(4桁)を入力してください"
             else:
                 return "確認のため、もう一度入力してください"
-        return "暗証番号(4桁)を入力してください"
+        return "暗証番号を4桁で入力してください"
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
@@ -580,14 +618,14 @@ class PinInputState(BaseInputState):
                 if self.input_buffer.add_char(num):
                     self.controller.play_sound("push-enter")
                 else:
-                    self.controller.play_beep_se() # 文字数オーバー
+                    self.controller.play_beep_se()  # 文字数オーバー
                 return
 
             if key_event.keysym == "BackSpace":
                 if self.input_buffer.backspace():
-                    self.controller.play_cancel_se() # 削除成功時は cancel.mp3
+                    self.controller.play_cancel_se()  # 削除成功時は cancel.mp3
                 else:
-                    self.controller.play_beep_se() # 空なら beep.mp3
+                    self.controller.play_beep_se()  # 空なら beep.mp3
             elif key_event.keysym == "Return":
                 self._confirm_input()
             elif key_event.keysym == "Escape":
@@ -612,36 +650,56 @@ class PinInputState(BaseInputState):
             success, info = am.verify_pin(acct, pin)
 
             if success:
-                self.controller.play_button_se() # 成功時のみ button.mp3
+                self.controller.play_button_se()  # 成功時のみ button.mp3
                 ctx["pin"] = pin
                 self.controller.change_state(GenericAmountInputState)
             else:
                 if info == -1:  # 凍結
-                    self.controller.play_assert_se() # 凍結は assert.mp3
+                    self.controller.play_assert_se()  # 凍結は assert.mp3
                     ctx["is_error"] = True
-                    ctx["result_message"] = "試行回数を超えたため\n口座を凍結しました。"
+                    ctx["result_message"] = (
+                        "規定の回数を超えて暗証番号が入力されたため、\n"
+                        "この口座はお取り扱いできません。"
+                    )
                     self.controller.change_state(ResultState)
                 elif info == -2:  # 存在しない（通常はここに来る前にチェック済み）
                     self.controller.play_assert_se()
                     ctx["is_error"] = True
-                    ctx["result_message"] = "口座が存在しません"
+                    ctx["result_message"] = (
+                        "ご入力いただいた口座番号はお取り扱いできません。"
+                    )
                     self.controller.change_state(ResultState)
                 else:
-                    self.controller.play_error_se() # 暗証番号間違いは incorrect.mp3
+                    self.controller.play_error_se()
                     self.input_buffer.clear()
                     self.controller.pin_pad.reset_random_mapping()
-                    self._message = f"暗証番号が違います\n(残り {info} 回)"
+                    self._message = (
+                        "暗証番号が正しくありません。\n"
+                        f"（あと {info} 回入力できます）"
+                    )
 
                     if info <= 0:
                         self.controller.play_assert_se()
                         ctx["is_error"] = True
-                        ctx["result_message"] = "試行回数を超えたため\n口座を凍結しました。"
+                        ctx["result_message"] = (
+                            "規定の回数を超えて暗証番号が入力されたため、\n"
+                            "この口座はお取り扱いできません。"
+                        )
                         self.controller.change_state(ResultState)
 
         elif txn == "create_account":
             step = ctx.get("pin_step", 1)
 
             if step == 1:
+                # 暗証番号の安全性チェック
+                is_safe, _ = is_valid_pin(pin)
+                if not is_safe:
+                    self.controller.play_beep_se()
+                    self.input_buffer.clear()
+                    self.controller.pin_pad.reset_random_mapping()
+                    self._message = "安全性の低い暗証番号は使用できません"
+                    return
+
                 self.controller.play_button_se()
                 ctx["first_pin"] = pin
                 ctx["pin_step"] = 2
@@ -659,8 +717,10 @@ class PinInputState(BaseInputState):
                     ctx["pin_step"] = 1
                     self.input_buffer.clear()
                     self.controller.pin_pad.reset_random_mapping()
-                    self.controller.play_error_se() # 不一致も incorrect.mp3
-                    self._message = "一致しません。最初から入力してください"
+                    self.controller.play_error_se()  # 不一致も incorrect.mp3
+                    self._message = (
+                        "一致しません。最初から入力してください"
+                    )
 
 
 # =============================================================================
