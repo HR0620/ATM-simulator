@@ -88,14 +88,14 @@ class ATMController:
         vision_conf = self.config.get("vision", {})
         pos_conf = self.config.get("position", {})
         safety_conf = self.config.get("safety", {})
-        
+
         self.async_detector = AsyncYoloDetector(
             model_path=vision_conf.get("model_path", "yolov8n-pose.pt"),
             conf_threshold=vision_conf.get("min_detection_confidence", 0.5),
             interval=vision_conf.get("inference_interval", 0.03),
             safety_conf=safety_conf
         )
-        
+
         self.position_tracker = PositionTracker(
             left_threshold=pos_conf.get("left_threshold", 0.333),
             right_threshold=pos_conf.get("right_threshold", 0.667),
@@ -133,11 +133,19 @@ class ATMController:
         self.last_key_event = None
         self.last_trigger_gesture = None  # UX Loop防止用
         self.is_exiting = False
-        
+
         # Audio Cooldown (Phase 1)
         self._last_sound_time = 0
         self._sound_cooldown = 0.1  # 100ms
         self._sound_played_this_frame = False
+
+        # 離席判定用変数 (Absence Detection)
+        self.normal_area = None         # 基準面積 (EMA)
+        self.absence_frames = 0         # 離席疑いフレームカウント
+        self.grace_period_frames = 0    # 復帰後の猶予期間
+        self.ema_alpha = 0.05           # 面積更新用EMA係数
+        self.det_history = []           # 断続消失判定用履歴 (最大60)
+        self.last_trigger_gesture = None  # 最後にトリガーされたジェスチャー
 
         # State Machine
         self.state_machine = StateMachine(self, FaceAlignmentState)
@@ -163,7 +171,7 @@ class ATMController:
     def play_sound(self, filename, force=False):
         """
         音声再生 (一括管理・スタック防止)
-        
+
         Args:
             filename (str): assets/sounds 内のファイル名 (拡張子なし)
             force (bool): クールダウンとフレームロックを無視して強制再生するか (重要SE用)
@@ -174,7 +182,7 @@ class ATMController:
         # クールダウンチェック (force=True の場合は無視)
         import time
         now = time.time()
-        
+
         if not force:
             # 1フレームに1回制限
             if self._sound_played_this_frame:
@@ -251,13 +259,13 @@ class ATMController:
             # 3. Vision Pipeline
             # 非同期検出リクエスト
             self.async_detector.detect_async(display_frame)
-            
+
             # 最新結果の取得
             detection_result = self.async_detector.get_latest_result()
-            
+
             # 位置追跡と安定化
             tracker_result = self.position_tracker.update(detection_result)
-            
+
             # AIModel互換の予測辞書を作成 (GestureValidator用)
             # PositionTrackerですでに安定化されているため、Validatorの連続判定は補助的なものになる
             prediction = {
@@ -266,11 +274,14 @@ class ATMController:
                 "all_scores": []
             }
 
-            # 4. ジェスチャー検証 (Lock機構など)
+            # 4. 離席判定ロジック
+            self._handle_absence_detection(detection_result)
+
+            # 5. ジェスチャー検証 (Lock機構など)
             # Trackerがunstableな場合はValidatorに渡さない（またはfree扱い）方が安全かもしれないが、
             # confidenceで制御する
             confirmed_gesture = self.gesture_validator.validate(prediction)
-            
+
             # UX Loop防止: 同一ジェスチャーの連続発火をブロック (Same-Gesture Blocking)
             # Free状態（手がなくなった）ならリセットして次の動作を受け付ける
             if tracker_result["position"] == "free" and tracker_result["is_stable"]:
@@ -287,7 +298,7 @@ class ATMController:
                     self.last_trigger_gesture = confirmed_gesture
                     effective_gesture = confirmed_gesture
             # confirmed_gestureがNone（不安定）の場合は状態を更新しない（ノイズ対策）
-            
+
             # 進捗はTrackerまたはValidatorから取得
             # Trackerのprogressの方が直感的かもしれない
             progress = tracker_result["progress"]
@@ -331,22 +342,22 @@ class ATMController:
     def _draw_debug_overlay(self, frame, detection, tracker_result):
         """デバッグ情報をフレームに描画"""
         h, w = frame.shape[:2]
-        
+
         # 領域境界線
         pos_conf = self.config.get("position", {})
         l_th = int(w * pos_conf.get("left_threshold", 0.333))
         r_th = int(w * pos_conf.get("right_threshold", 0.667))
-        
+
         cv2.line(frame, (l_th, 0), (l_th, h), (0, 255, 255), 1)
         cv2.line(frame, (r_th, 0), (r_th, h), (0, 255, 255), 1)
-        
+
         # 検出点 (Wrist)
         if detection.get("detected"):
             px = detection["point_x_px"]
             py = detection["point_y_px"]
             cv2.circle(frame, (px, py), 10, (0, 0, 255), -1)
-            cv2.putText(frame, "Wrist", (px + 15, py), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            cv2.putText(frame, "Wrist", (px + 15, py),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
             # 全キーポイント（青色）
             if "keypoints" in detection:
@@ -357,21 +368,88 @@ class ATMController:
                         if cx > 0 and cy > 0:
                             cv2.circle(frame, (cx, cy), 3, (255, 0, 0), -1)
 
-        
         # 判定ステータス
         status_text = f"Pos: {tracker_result['position']} ({tracker_result['progress']:.0%})"
         if tracker_result.get("is_stable"):
             color = (0, 255, 0)
         else:
             color = (0, 255, 255)
-            
-        cv2.putText(frame, status_text, (10, 30), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        
+
+        cv2.putText(frame, status_text, (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
         # Lock状態
         if self.gesture_validator.is_locked():
-            cv2.putText(frame, "LOCKED", (10, 60), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            cv2.putText(frame, "LOCKED", (10, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+    def _handle_absence_detection(self, result):
+        """
+        利用者の離席を検知し、必要に応じて警告状態へ遷移させる。
+        """
+        # 特定の状態では判定を行わない (顔合わせ中、終了処理中、警告表示中)
+        current_state = self.state_machine.current_state_name
+        ignore_states = ["FaceAlignmentState", "UserAbsentWarningState", "WelcomeState"]
+        if getattr(self, "is_exiting", False) or current_state in ignore_states:
+            return
+
+        # 復帰直後の猶予期間中
+        if self.grace_period_frames > 0:
+            self.grace_period_frames -= 1
+            return
+
+        person_count = result.get("person_count", 0)
+        area = result.get("primary_person_area", 0.0)
+
+        # 複数人検知時は判定を一時停止 (誤検知防止)
+        if person_count >= 2:
+            return
+
+        # 履歴更新 (断続消失判定用)
+        self.det_history.append(1 if person_count > 0 else 0)
+        if len(self.det_history) > 60:
+            self.det_history.pop(0)
+
+        # 条件判定
+        is_absent_suspicious = False
+
+        # 条件A: 完全消失 (45フレーム)
+        if person_count == 0:
+            self.absence_frames += 1
+            if self.absence_frames >= 45:
+                is_absent_suspicious = True
+        else:
+            # 条件B: 面積縮小 (基準値の40%未満)
+            if self.normal_area and area < (self.normal_area * 0.4):
+                self.absence_frames += 1
+                if self.absence_frames >= 45:
+                    is_absent_suspicious = True
+            else:
+                self.absence_frames = 0
+                # 基準面積の動的校正 (安定している場合のみEMAで更新)
+                if self.normal_area and abs(area - self.normal_area) < (self.normal_area * 0.15):
+                    self.normal_area = (self.ema_alpha * area) + ((1 - self.ema_alpha) * self.normal_area)
+
+        # 条件C: 断続消失 (直近60フレームの傾向)
+        if len(self.det_history) == 60:
+            det_rate = sum(self.det_history) / 60
+            # 連続検出の最大値を計測
+            max_consecutive = 0
+            current_consecutive = 0
+            for d in self.det_history:
+                if d == 1:
+                    current_consecutive += 1
+                    max_consecutive = max(max_consecutive, current_consecutive)
+                else:
+                    current_consecutive = 0
+
+            if det_rate <= 0.2 and max_consecutive < 5:
+                is_absent_suspicious = True
+
+        # 警告状態へ遷移
+        if is_absent_suspicious:
+            from src.core.states import UserAbsentWarningState
+            self.change_state(UserAbsentWarningState)
 
     def on_close(self):
         """App Exit"""
@@ -380,11 +458,11 @@ class ATMController:
 
         self.is_exiting = True
         print("Exiting application...")
-        
+
         # Stop vision
         if hasattr(self, 'async_detector'):
             self.async_detector.stop()
-            
+
         try:
             self.play_sound("come-again")
         except Exception:
@@ -396,10 +474,10 @@ class ATMController:
             pygame.mixer.quit()
         except Exception:
             pass
-        
+
         if hasattr(self, 'async_detector'):
             self.async_detector.release()
-            
+
         self.camera.release()
         self.root.destroy()
         print("Exit complete")

@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 def print_step(step):
-    print(f"\n{'='*40}")
+    print(f"\n{'=' * 40}")
     print(f"STEP: {step}")
-    print(f"{'='*40}")
+    print(f"{'=' * 40}")
 
 
 def main():
@@ -29,13 +29,18 @@ def main():
     RESOURCES_DIR = PROJECT_ROOT / "resources"
     DIST_DIR = PROJECT_ROOT / "dist"
     BUILD_DIR = PROJECT_ROOT / "build"
+    ASSETS_DIR = RESOURCES_DIR / "assets"
+    IMAGES_DIR = ASSETS_DIR / "images"
     EXE_NAME = "AI-based Touchless Machine (ATM)"
     MAIN_SCRIPT = SRC_DIR / "main.py"
-    ICON_PATH = RESOURCES_DIR / "icon.ico"
+    ICON_PATH = IMAGES_DIR / "icon.ico"
 
     # 0. Check Icon
     print_step("Checking Icon")
-    print(f"[OK] Icon found at {ICON_PATH}")
+    if ICON_PATH.exists():
+        print(f"[OK] Icon found at {ICON_PATH}")
+    else:
+        print(f"[!] Warning: Icon not found at {ICON_PATH}")
 
     # 0.1 Ensure Haar Cascade XML is in resources
     print_step("Ensuring Haar Cascade XML")
@@ -55,16 +60,23 @@ def main():
         print(f"[OK] {cascade_xml} already in resources/config/")
 
     # 0.2 Ensure Splash Image is in resources/assets
+    # main.py looks for resources/assets/icon.png
     print_step("Ensuring Splash Image")
     splash_src = PROJECT_ROOT / "docs" / "images" / "icon.png"
-    splash_dst = RESOURCES_DIR / "assets" / "icon.png"
+    splash_dst = ASSETS_DIR / "icon.png"
     if splash_src.exists():
         if not splash_dst.parent.exists():
             splash_dst.parent.mkdir(parents=True)
         shutil.copy(splash_src, splash_dst)
         print(f"[OK] Copied splash image to {splash_dst}")
     else:
-        print(f"[!] Warning: Splash image source not found at {splash_src}")
+        # fallback to IMAGES_DIR if docs doesn't exist
+        fallback_src = IMAGES_DIR / "icon.png"
+        if fallback_src.exists() and fallback_src != splash_dst:
+            shutil.copy(fallback_src, splash_dst)
+            print(f"[OK] Copied splash image from images to {splash_dst}")
+        else:
+            print(f"[!] Warning: Splash image source not found at {splash_src}")
 
     # 1. Clean previous builds
     print_step("Cleaning previous builds")
@@ -98,7 +110,7 @@ def main():
         "--name", EXE_NAME,
         "--clean",
         "--noconfirm",          # Don't ask for confirmation
-        "--icon", str(ICON_PATH),
+        "--icon", str(ICON_PATH) if ICON_PATH.exists() else "",
         "--distpath", str(DIST_DIR),
         "--workpath", str(BUILD_DIR),
         "--specpath", str(PROJECT_ROOT),
@@ -110,6 +122,9 @@ def main():
         "--hidden-import", "yaml",
         "--hidden-import", "src.paths"  # Ensure our path module is included
     ]
+
+    # Filter out empty strings
+    pyinstaller_cmd = [c for c in pyinstaller_cmd if c]
 
     try:
         subprocess.check_call(pyinstaller_cmd)
@@ -143,11 +158,12 @@ def main():
         else:
             print(f"[!] Warning: Resource folder {folder_name} not found at {src}")
 
-    # Copy README.md to root of dist app
-    readme_src = PROJECT_ROOT / "README.md"
-    if readme_src.exists():
-        shutil.copy(readme_src, target_app_dir / "README.md")
-        print("✓ Copied README.md")
+    # Copy README files to root of dist app
+    for readme_name in ["README.md", "README_en.md"]:
+        readme_src = PROJECT_ROOT / readme_name
+        if readme_src.exists():
+            shutil.copy(readme_src, target_app_dir / readme_name)
+            print(f"✓ Copied {readme_name}")
 
     print_step("Build Complete")
     print(f"Your application is ready at:\n{target_app_dir}")
@@ -158,7 +174,8 @@ def main():
     print("  │     ├── assets/")
     print("  │     ├── config/")
     print("  │     └── model/")
-    print("  └── README.md")
+    print("  ├── README.md")
+    print("  └── README_en.md")
 
     # Open the folder
     os.startfile(target_app_dir)

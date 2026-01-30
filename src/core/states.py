@@ -7,6 +7,7 @@ ATM States モジュール (リファクタリング版)
 - 音声再生を適切なタイミングで実行
 - アイドル検知機能を追加
 """
+import time
 from src.core.state_machine import State
 from src.core.input_handler import InputBuffer
 from src.core.pin_validator import is_valid_pin
@@ -171,6 +172,13 @@ class FaceAlignmentState(State):
                 self.controller.play_beep_se()  # 顔認識画面でのキーボード入力は一律beep
 
             if status == "confirmed":
+                # 離席判定用の基準面積を初期化 (現在の顔面積をベースにする)
+                # YOLOからの面積データが更新されるタイミングを待つため、
+                # ここでは FaceChecker の結果から概算、または最新のYOLO結果を待つ
+                latest_res = self.controller.async_detector.get_latest_result()
+                if latest_res.get("detected"):
+                    self.controller.normal_area = latest_res.get("primary_person_area")
+
                 # 起動音 → いらっしゃいませの前
                 self.controller.play_sound("open-window", force=True)
                 self.controller.change_state(MenuState)
@@ -742,3 +750,77 @@ class CreateAccountNameInputState(BaseInputState):
         self.controller.shared_context["name"] = value
         self.controller.shared_context["pin_step"] = 1
         self.controller.change_state(PinInputState)
+
+
+# =============================================================================
+# 離席警告画面
+# =============================================================================
+
+class UserAbsentWarningState(State):
+    """
+    利用者が離席したことを検知した際の警告画面。
+    5秒間無操作ならホーム画面へ戻り、ボタン押下で復帰する。
+    """
+
+    def on_enter(self, prev_state=None):
+        # 警告音を一度だけ再生
+        self.controller.play_assert_se()
+
+        # 直前の状態を保存 (復帰用)
+        self.previous_state = prev_state
+        self.start_time = time.time()
+        self.timeout_sec = 5
+
+        # 離席判定をリセット
+        self.controller.absence_frames = 0
+        self.controller.det_history = []
+
+        self.controller.ui.set_click_callback(self._on_click)
+
+    def on_exit(self):
+        self.controller.ui.set_click_callback(None)
+
+    def _on_click(self, zone):
+        if zone == "center":
+            self._resume()
+
+    def _resume(self):
+        """元の操作へ復帰"""
+        self.controller.play_button_se()
+        # 復帰直後の再検知を防ぐ猶予期間を設定 (3秒 = 約90フレーム)
+        self.controller.grace_period_frames = 90
+
+        if self.previous_state:
+            # 前の状態が WarningState 自身でないことを確認 (念のため)
+            if self.previous_state.__class__ != self.__class__:
+                self.controller.change_state(self.previous_state.__class__)
+            else:
+                self.controller.change_state(MenuState)
+        else:
+            self.controller.change_state(MenuState)
+
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+
+        elapsed = time.time() - self.start_time
+        remaining = max(0, int(self.timeout_sec - elapsed))
+
+        if elapsed >= self.timeout_sec:
+            # タイムアウトでホーム画面へ
+            self.controller.change_state(MenuState)
+            return
+
+        # UI描画
+        self.controller.ui.render_frame(frame, {
+            "mode": "absence_warning",
+            "header": "利用者離席検知",
+            "message": "ご利用者が離れたことを検知しました。\nこのまま操作を続けますか？",
+            "countdown": remaining,
+            "guides": {"center": "操作に戻る"},
+            "progress": progress,
+            "current_direction": current_direction,
+            "debug_info": debug_info,
+        })
+
+        if gesture == "center" or (key_event and key_event.keysym == "Return"):
+            self._resume()

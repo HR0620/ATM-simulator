@@ -423,6 +423,8 @@ class ATMUI:
             self._draw_result_overlay()
         elif mode == "exit":
             self._draw_exit_overlay()
+        elif mode == "absence_warning":
+            self._draw_result_overlay()
 
         # ガイダンスがあれば最前面に描画
         if self._guidance_text:
