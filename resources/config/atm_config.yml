@@ -52,3 +52,11 @@ vision:
   model_path: resources/model/yolov8n-pose.pt
   model_type: yolov8_pose
   use_async: true
+layout:
+  header_height: 80
+  footer_height: 80
+  debug_panel_width: 200
+  button_padding: 15
+  press_offset: 4
+  shadow_offset: 4
+  shadow_color: "#00000066"

@@ -1,11 +1,12 @@
 {
     "ui": {
-      "language": "Langue",
+      "language": "Language",
       "esc_exit": "ESC: Quitter",
-      "select_language": "Choisir la langue",
+      "select_language": "Select Language",
       "thank_you": "Merci d'avoir utilisé notre service",
       "ondokusan": "Guidage vocal: 音読さん (ondoku3.com)",
-      "main_menu": "Menu Principal"
+      "main_menu": "Menu Principal",
+      "details": "Détails"
     },
     "btn": {
       "next": "Suivant",
@@ -15,7 +16,9 @@
       "resume": "Reprendre",
       "transfer": "Virement",
       "withdraw": "Retrait",
-      "create_account": "Créer un compte"
+      "create_account": "Créer un compte",
+      "confirm": "Confirmer",
+      "correct": "Corriger"
     },
     "input": {
       "pin": {
@@ -39,22 +42,23 @@
       "invalid_amount": "Montant invalide.",
       "insufficient_balance": "Solde insuffisant.",
       "account": {
-        "invalid": "Le numéro de compte saisi n'est pas valide.",
+        "invalid": "Le numéro de compte saisi est invalide.",
         "frozen": "Ce compte est actuellement indisponible."
       },
       "pin": {
-        "safety": "Ce code PIN n'est pas sécurisé. Veuillez en saisir un autre.",
+        "safety": "Ce code PIN n'est pas sécurisé. Veuillez en choisir un autre.",
         "mismatch": "Les codes PIN ne correspondent pas. Veuillez recommencer.",
-        "mismatch_retry": "Les codes PIN ne correspondent pas. Veuillez réessayer.",
+        "mismatch_retry": "Les codes PIN ne correspondent pas. Veuillez réessayer",
         "incorrect": "Code PIN incorrect.\n(Encore {} tentatives)",
         "locked": "Compte verrouillé suite à trop de tentatives erronées.\nOpération impossible."
       }
     },
     "confirm": {
-      "title": "Confirmation de saisie",
-      "transfer": "Destinataire : {}\nMontant : {:,} JPY\n\nEst-ce correct ?",
-      "withdraw": "Montant du retrait : {:,} JPY\n\nEst-ce correct ?",
-      "create_account": "Nom : {}\n\nSouhaitez-vous créer ce compte ?"
+      "title": "Confirmation",
+      "general": "Est-ce correct ?",
+      "transfer": "Destinataire : {target}\nMontant : {amount:,} JPY\n\nEst-ce correct ?",
+      "withdraw": "Montant du retrait : {amount:,} JPY\n\nEst-ce correct ?",
+      "create_account": "Nom du compte : {name}\n\nEst-ce correct ?"
     },
     "guidance": {
       "action": "Sélection par clic ou geste",
@@ -70,15 +74,33 @@
     },
     "msg": {
       "welcome": "Bienvenue",
+      "return_menu_countdown": "Retour au menu dans {seconds} s",
+      "transaction_complete": "Transaction effectuée avec succès",
+      "error": {
+        "frozen": "Le compte est gelé"
+      },
+      "absent_warning": "Absence prolongée détectée\nRetourner au début ?",
       "complete": "Opération terminée.",
-      "absent_warning": "Détection d'absence de l'utilisateur.\nContinuer l'opération ?",
-      "return_menu_countdown": "Retour au menu dans {}s",
       "account_created": "Compte créé avec succès.\n\nNuméro de compte : {}\n\n",
       "withdraw_complete": "Retrait effectué.\nSolde après retrait : {:,} JPY",
       "face": {
+        "align_title": "Détection Faciale",
         "align": "Veuillez cadrer votre visage",
         "waiting": "Veuillez cadrer votre visage dans le cadre",
         "detecting": "Authentification en cours..."
       }
+    },
+    "loading": {
+      "init": "Initialisation du système...",
+      "deps": "Vérification des dépendances...",
+      "ai": "Lancement du moteur AI (cela peut prendre du temps)...",
+      "core": "Chargement des composants système...",
+      "done": "Prêt !"
+    },
+    "error_hints": {
+      "avx": "Ce processeur ne supporte peut-être pas AVX. Essayez sur un PC plus récent.",
+      "dll": "Composants système (DLL) manquants. Installez MSVC Redistributable.",
+      "model": "Modèle AI introuvable. Vérifiez le dossier resources/model.",
+      "generic": "Erreur inconnue. Vérifiez les logs ou contactez le développeur."
     }
   }

@@ -6,10 +6,8 @@ ATMコントローラー
 - GestureValidator と連携し、状態遷移時に強制リセット
 - 進捗情報とAI予測情報をStateに渡して視覚フィードバックを実現
 """
-import yaml
 import traceback
 import cv2
-import pygame
 import os
 from src.vision.camera_manager import CameraManager
 from src.vision.async_yolo_detector import AsyncYoloDetector
@@ -31,20 +29,23 @@ class ATMController:
 
     def __init__(self, root):
         self.root = root
-        self._load_config()
+
+        # Initialize Core Managers
+        from src.core.config_loader import ConfigLoader
+        from src.core.audio_manager import AudioManager
+        from src.core.i18n_manager import I18nManager
+
+        self.config_loader = ConfigLoader()
+        self.config = self.config_loader.config  # Compatibility alias
+        self.audio = AudioManager()
+        self.i18n = I18nManager()
+
+        # Sync initial language
+        self.audio.set_language(self.i18n.current_lang)
+
         self._setup_window()
         self._init_modules()
         self._start_app()
-
-    def _load_config(self):
-        """設定ファイルの読み込み"""
-        try:
-            config_path = get_resource_path("config/atm_config.yml")
-            with open(config_path, "r", encoding="utf-8") as f:
-                self.config = yaml.safe_load(f)
-        except Exception as e:
-            print(f"設定ファイルの読み込みに失敗しました: {e}")
-            raise
 
     def _setup_window(self):
         """ウィンドウ設定"""
@@ -68,13 +69,6 @@ class ATMController:
         """Module Initialization"""
         print("Initializing modules...")
 
-        # Audio
-        try:
-            pygame.mixer.init()
-        except Exception as e:
-            print(f"Warning: Audio mixer failed to initialize: {e}")
-
-        # Camera
         # Camera
         fps = self.config["camera"].get("fps", 30)
         self.camera = CameraManager(
@@ -124,31 +118,73 @@ class ATMController:
             visual_ratio=visual_ratio
         )
 
-        # UI
-        self.ui = ATMUI(self.root, self.config)
+        # UI (Pass I18nManager)
+        self.ui = ATMUI(self.root, self.config, self.i18n)
 
-        # Context
         # Context
         self.shared_context = {}
         self.last_key_event = None
-        self.last_trigger_gesture = None  # UX Loop防止用
+        self.last_trigger_gesture = None
         self.is_exiting = False
 
-        # Audio Cooldown (Phase 1)
-        self._last_sound_time = 0
-        self._sound_cooldown = 0.1  # 100ms
-        self._sound_played_this_frame = False
-
         # 離席判定用変数 (Absence Detection)
-        self.normal_area = None         # 基準面積 (EMA)
-        self.absence_frames = 0         # 離席疑いフレームカウント
-        self.grace_period_frames = 0    # 復帰後の猶予期間
-        self.ema_alpha = 0.05           # 面積更新用EMA係数
-        self.det_history = []           # 断続消失判定用履歴 (最大60)
-        self.last_trigger_gesture = None  # 最後にトリガーされたジェスチャー
+        self.normal_area = None
+        self.absence_frames = 0
+        self.grace_period_frames = 0
+        self.ema_alpha = 0.05
+        self.det_history = []
+        self.last_trigger_gesture = None
 
         # State Machine
         self.state_machine = StateMachine(self, FaceAlignmentState)
+
+        # UI Callback binding
+        self.ui.set_language_callback(self.toggle_language)
+
+    def toggle_language(self):
+        """言語切り替え (JP <-> EN)"""
+        current = self.i18n.current_lang
+        # Simple toggle for now
+        next_lang = "EN" if current == "JP" else "JP"
+
+        print(f"Switching language to {next_lang}")
+        self.i18n.set_language(next_lang)
+        self.audio.set_language(next_lang)
+        self.config["system"]["language"] = next_lang
+        # Persist config if possible? ConfigLoader doesn't have save() shown yet.
+        # But runtime update is sufficient for this session.
+
+        self.audio.play_se("touch-button")
+
+    def play_voice(self, key):
+        """Play localized voice"""
+        self.audio.play_voice(key)
+
+    def play_se(self, key):
+        """Play sound effect"""
+        self.audio.play_se(key)
+
+    # Wrapper aliases for compatibility (can be removed later if states are fully updated)
+    def play_sound(self, key):
+        self.audio.play(key)
+
+    def play_button_se(self):
+        self.audio.play_se("button")  # or touch-button
+
+    def play_cancel_se(self):
+        self.audio.play_se("cancel")
+
+    def play_assert_se(self):
+        self.audio.play_se("assert")
+
+    def play_error_se(self):
+        self.audio.play_se("incorrect")
+
+    def play_beep_se(self):
+        self.audio.play_se("beep")
+
+    def play_back_se(self):
+        self.audio.play_se("back")
 
     def _start_app(self):
         """Start App"""
@@ -168,78 +204,11 @@ class ATMController:
         self.gesture_validator.force_reset()
         self.state_machine.change_state(next_state_cls)
 
-    def play_sound(self, filename, force=False):
-        """
-        音声再生 (一括管理・スタック防止)
-
-        Args:
-            filename (str): assets/sounds 内のファイル名 (拡張子なし)
-            force (bool): クールダウンとフレームロックを無視して強制再生するか (重要SE用)
-        """
-        if not pygame.mixer.get_init():
-            return
-
-        # クールダウンチェック (force=True の場合は無視)
-        import time
-        now = time.time()
-
-        if not force:
-            # 1フレームに1回制限
-            if self._sound_played_this_frame:
-                return
-            # クールダウンチェック (100ms)
-            if (now - self._last_sound_time < self._sound_cooldown):
-                return
-
-        # 終了シーケンス中は come-again 以外の音声を無視する
-        if getattr(self, "is_exiting", False) and filename != "come-again":
-            return
-
-        base_filename = os.path.join("assets", "sounds", filename)
-
-        for ext in [".mp3", ".mp4", ".wav"]:
-            relative_path = base_filename + ext
-            path = get_resource_path(relative_path)
-
-            if os.path.exists(path):
-                try:
-                    pygame.mixer.music.load(path)
-                    pygame.mixer.music.play()
-                    self._last_sound_time = now
-                    self._sound_played_this_frame = True
-                except Exception as e:
-                    print(f"音声再生エラー ({path}): {e}")
-                return
-
-    # ----- SE Helper Methods -----
-    def play_button_se(self):
-        """肯定的操作音"""
-        self.play_sound("button")
-
-    def play_back_se(self):
-        """戻る操作音"""
-        self.play_sound("back")
-
-    def play_beep_se(self):
-        """無効操作音"""
-        self.play_sound("beep")
-
-    def play_error_se(self):
-        """間違い入力音"""
-        self.play_sound("incorrect")
-
-    def play_assert_se(self):
-        """重大エラー音"""
-        self.play_sound("assert")
-
-    def play_cancel_se(self):
-        """取消音 (文字削除など)"""
-        self.play_sound("cancel")
+    # Audio methods moved to AudioManager, but keeping play_sound for temporary compatibility if needed
+    # Better: Remove them and update states.py to use self.controller.audio.play()
 
     def update_loop(self):
         """メインの更新ループ"""
-        # フレーム毎のフラグリセット
-        self._sound_played_this_frame = False
         try:
             # 終了処理中は Exit画面 (bow.png) を表示してループ継続
             if getattr(self, "is_exiting", False):
@@ -304,10 +273,9 @@ class ATMController:
             progress = tracker_result["progress"]
             current_direction = tracker_result["position"]
 
-            # 5. デバッグオーバーレイ描画
-            vision_conf = self.config.get("vision", {})
-            if vision_conf.get("debug_overlay", False) or self.config["ui"].get("debug_mode", False):
-                self._draw_debug_overlay(display_frame, detection_result, tracker_result)
+            # 5. デバッグオーバーレイ描画を削除 (Viewが担当)
+            # if vision_conf.get("debug_overlay", False) or self.config["ui"].get("debug_mode", False):
+            #     self._draw_debug_overlay(display_frame, detection_result, tracker_result)
 
             # 5. デバッグ情報を収集
             debug_info = {
@@ -340,48 +308,10 @@ class ATMController:
             self.root.after(1000, self.update_loop)
 
     def _draw_debug_overlay(self, frame, detection, tracker_result):
-        """デバッグ情報をフレームに描画"""
-        h, w = frame.shape[:2]
-
-        # 領域境界線
-        pos_conf = self.config.get("position", {})
-        l_th = int(w * pos_conf.get("left_threshold", 0.333))
-        r_th = int(w * pos_conf.get("right_threshold", 0.667))
-
-        cv2.line(frame, (l_th, 0), (l_th, h), (0, 255, 255), 1)
-        cv2.line(frame, (r_th, 0), (r_th, h), (0, 255, 255), 1)
-
-        # 検出点 (Wrist)
-        if detection.get("detected"):
-            px = detection["point_x_px"]
-            py = detection["point_y_px"]
-            cv2.circle(frame, (px, py), 10, (0, 0, 255), -1)
-            cv2.putText(frame, "Wrist", (px + 15, py),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-
-            # 全キーポイント（青色）
-            if "keypoints" in detection:
-                for kp in detection["keypoints"]:
-                    # kp = [x, y, conf]
-                    if len(kp) >= 2:
-                        cx, cy = int(kp[0]), int(kp[1])
-                        if cx > 0 and cy > 0:
-                            cv2.circle(frame, (cx, cy), 3, (255, 0, 0), -1)
-
-        # 判定ステータス
-        status_text = f"Pos: {tracker_result['position']} ({tracker_result['progress']:.0%})"
-        if tracker_result.get("is_stable"):
-            color = (0, 255, 0)
-        else:
-            color = (0, 255, 255)
-
-        cv2.putText(frame, status_text, (10, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-
-        # Lock状態
-        if self.gesture_validator.is_locked():
-            cv2.putText(frame, "LOCKED", (10, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        """デバッグ情報をフレームに描画 (Viewへ移動予定だが一時的に保持)"""
+        # View側で実装済みのため、ここは空にするか削除する
+        # 現状は呼び出し元がコメントアウトされているため安全
+        pass
 
     def _handle_absence_detection(self, result):
         """
@@ -464,14 +394,14 @@ class ATMController:
             self.async_detector.stop()
 
         try:
-            self.play_sound("come-again")
+            self.audio.play("come-again", force=True)
         except Exception:
             pass
         self.root.after(5000, self._finalize_exit)
 
     def _finalize_exit(self):
         try:
-            pygame.mixer.quit()
+            self.audio.quit()
         except Exception:
             pass
 

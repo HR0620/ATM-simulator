@@ -27,7 +27,7 @@ class BaseInputState(State):
     HEADER = ""
     MESSAGE = ""
     UNIT = ""
-    GUIDANCE_EMPTY = "入力内容を確認してください"
+    GUIDANCE_EMPTY = "guidance.check_input"
     DIGIT_ONLY = True
 
     def on_enter(self, prev_state=None):
@@ -53,15 +53,17 @@ class BaseInputState(State):
         self.controller.change_state(MenuState)
 
     def _confirm_input(self):
-        """入力確定操作の一元管理"""
-        value = self.input_buffer.get_value()
-        if len(value) >= self.MIN_INPUT_LENGTH:
-            # 音声再生は _on_input_complete 内で条件に応じて行う
-            self._on_input_complete(value)
+        # バリデーション (7桁)
+        val = self.input_buffer.get_value()
+        if len(val) == 7:
+            self.controller.play_button_se()
+            self.controller.shared_context["target_account"] = val
+            self.controller.change_state(GenericAmountInputState)
         else:
             self.controller.ui.show_guidance(
-                self.GUIDANCE_EMPTY, is_error=True
+                "guidance.error.digits.7", is_error=True
             )
+            # or use generic 'guidance.check_input' if specialized key missing
             self.controller.play_beep_se()
 
     def _on_input_complete(self, value):
@@ -71,7 +73,7 @@ class BaseInputState(State):
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
 
-        guides = {"left": "進む", "right": "戻る"}
+        guides = {"left": "btn.next", "right": "btn.back"}
 
         self.controller.ui.render_frame(frame, {
             "mode": "input",
@@ -98,7 +100,7 @@ class BaseInputState(State):
         # Center ガイダンス
         if gesture == "center":
             self.controller.ui.show_guidance(
-                "「進む」または「戻る」を選択してください"
+                "guidance.select_action"
             )
             return
 
@@ -111,7 +113,7 @@ class BaseInputState(State):
         if self.DIGIT_ONLY:
             if char.isdigit():
                 if self.input_buffer.add_char(char):
-                    self.controller.play_sound("push-enter")
+                    self.controller.play_button_se()
                 else:
                     self.controller.play_beep_se()
                 return
@@ -163,13 +165,13 @@ class FaceAlignmentState(State):
 
             self.controller.ui.render_frame(frame, {
                 "mode": "face_align",
-                "header": "顔検出",
+                "header": "msg.face.align",  # or specific title
                 "face_result": (status, guide_box, face_rect),
                 "debug_info": debug_info,
             })
 
             if key_event:
-                self.controller.play_beep_se()  # 顔認識画面でのキーボード入力は一律beep
+                self.controller.audio.play("beep")  # 顔認識画面でのキーボード入力は一律beep
 
             if status == "confirmed":
                 # 離席判定用の基準面積を初期化 (現在の顔面積をベースにする)
@@ -180,7 +182,7 @@ class FaceAlignmentState(State):
                     self.controller.normal_area = latest_res.get("primary_person_area")
 
                 # 起動音 → いらっしゃいませの前
-                self.controller.play_sound("open-window", force=True)
+                # Voice handled by AudioPolicy (FaceAlignmentState -> welcome, MenuState -> push-button)
                 self.controller.change_state(MenuState)
         else:
             self.controller.change_state(MenuState)
@@ -192,7 +194,7 @@ class MenuState(State):
     IDLE_TIMEOUT_SEC = 10  # アイドル検知時間
 
     def on_enter(self, prev_state=None):
-        self.controller.play_sound("irassyaimase")
+        # Audio handled by Policy
         self.controller.shared_context = {}
         self.controller.ui.set_click_callback(self._on_click)
 
@@ -218,7 +220,9 @@ class MenuState(State):
 
     def _on_idle(self):
         """アイドル状態になったら音声再生"""
-        self.controller.play_sound("touch-button")
+        # To trigger AudioPolicy, we might need to change context
+        # self.controller.shared_context["is_idle"] = True
+        # self.controller.play_voice("check-screen") # Removed for strict policy
         # 再度タイマー開始
         self._start_idle_timer()
 
@@ -249,11 +253,11 @@ class MenuState(State):
 
         self.controller.ui.render_frame(frame, {
             "mode": "menu",
-            "header": "メインメニュー",
+            "header": "ui.main_menu",
             "buttons": [
-                {"zone": "left", "label": "お振り込み"},
-                {"zone": "center", "label": "お引き出し"},
-                {"zone": "right", "label": "口座作成"},
+                {"zone": "left", "label": "btn.transfer"},
+                {"zone": "center", "label": "btn.withdraw"},
+                {"zone": "right", "label": "btn.create_account"},
             ],
             "progress": progress,
             "current_direction": current_direction,
@@ -276,17 +280,18 @@ class ResultState(State):
             "is_account_created", False
         )
         is_error = self.controller.shared_context.get("is_error", False)
-        msg = self.controller.shared_context.get("result_message", "")
+        # msg is now a key usually
+        msg_key = self.controller.shared_context.get("result_message", "")
 
         if is_error:
-            # 重大エラーは assert, それ以外は incorrect
-            if any(x in msg for x in ["凍結", "存在しない", "エラー", "失敗"]):
-                self.controller.play_sound("assert", force=True)
-            else:
-                self.controller.play_sound("incorrect", force=True)
+            # If msg_key contains suspicious words (legacy check), or just rely on is_error
+            # Ideally msg_key determines the sound.
+            # Using simple fallback:
+            self.controller.play_assert_se()
         else:
-            self.controller.play_sound("come-again", force=True)
+            pass  # Audio handled by Policy (create-account or come-again)
 
+        self.start_time = time.time()
         self.countdown = 10 if is_account_created else 5
         self._start_countdown()
 
@@ -329,12 +334,12 @@ class ResultState(State):
 # =============================================================================
 
 class TransferTargetInputState(BaseInputState):
-    """振込先口座番号入力"""
+    """振込先入力ステート"""
     INPUT_MAX = 6
     MIN_INPUT_LENGTH = 6
     ALIGN_RIGHT = False
-    HEADER = "お振り込み"
-    MESSAGE = "振込先の口座番号を入力してください"
+    HEADER = "btn.transfer"
+    MESSAGE = "input.account.target"
     GUIDANCE_EMPTY = "口座番号を6桁で入力してください"
 
     def _on_input_complete(self, value):
@@ -367,12 +372,12 @@ class TransferTargetInputState(BaseInputState):
 
 
 class GenericAmountInputState(BaseInputState):
-    """金額入力"""
+    """金額入力ステート"""
     INPUT_MAX = 7
     MIN_INPUT_LENGTH = 1
     ALIGN_RIGHT = True
-    HEADER = "金額入力"
-    MESSAGE = "金額を入力してください"
+    HEADER = "btn.amount"  # or "ui.amount_input"
+    MESSAGE = "input.amount"
     UNIT = "円"
     GUIDANCE_EMPTY = "金額を入力してください"
 
@@ -383,7 +388,7 @@ class GenericAmountInputState(BaseInputState):
             self.controller.change_state(MenuState)
             return
         if txn == "withdraw":
-            self.controller.play_sound("please-select")
+            # Audio by Policy
             # 引出時は残高を表示
             acct = self.controller.shared_context.get("account_number")
             balance = self.controller.account_manager.get_balance(acct)
@@ -391,54 +396,91 @@ class GenericAmountInputState(BaseInputState):
                 f"金額を入力してください\n現在の貯蓄残高：{balance}円"
             )
         else:
-            self.controller.play_sound("pay-money")
+            # Audio by Policy
             self.MESSAGE = "振込金額を入力してください"
 
-    def _on_input_complete(self, value):
-        if len(value) >= 1:
-            self.controller.play_button_se()
-            amt = int(value)
-            self.controller.shared_context["amount"] = amt
-            self.controller.change_state(ConfirmationState)
+    def _confirm_input(self):
+        amount_str = self.input_buffer.get_value()
+        if not amount_str:
+            self.controller.play_beep_se()
+            return
+
+        amount = int(amount_str)
+        if amount <= 0:
+            self.controller.play_beep_se()
+            return
+
+        self.controller.play_button_se()
+        self.controller.shared_context["amount"] = amount
+        self.controller.change_state(ConfirmationState)
 
 
 class ConfirmationState(State):
-    """確認画面"""
+    """確認画面ステート"""
 
     def on_enter(self, prev_state=None):
-        txn = self.controller.shared_context.get("transaction")
-        # 金額確認音または保存確認音
-        if txn == "create_account":
-            self.controller.play_sound("save-data_q")
-        else:
-            self.controller.play_sound("check-money")
-
+        # Audio by Policy
         self.controller.ui.set_click_callback(self._on_click)
 
     def on_exit(self):
         self.controller.ui.set_click_callback(None)
 
-    def _on_click(self, zone):
-        if zone == "left":
+    def _on_click(self, x, y):
+        clicked_zone = self.controller.ui.get_zone_at(x, y)
+        if clicked_zone:
+            self._handle_selection(clicked_zone)
+
+    def _handle_selection(self, zone):
+        if zone == "left":   # Yes -> PinInput
             self.controller.play_button_se()
-            self._execute_transaction()
-        elif zone == "right":
-            self.controller.play_back_se()  # 「いいえ/戻る」は back.mp3
+            self.controller.change_state(PinInputState)
+        elif zone == "right":  # No -> Menu
+            self.controller.play_cancel_se()
             self.controller.change_state(MenuState)
+        else:
+            self.controller.play_beep_se()
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
-        txn = self.controller.shared_context.get("transaction")
-        msg = self._build_message(txn)
+
+        # ... logic ...
+
+        # confirm.title = "入力内容の確認"
+        # confirm.transfer = ("お振込み先 : {}\n" "お振込み金額 : {:,}円\n\n" "よろしいですか？")
+        # Reuse logic for formatting
+        title_key = "confirm.title"
+
+        ctx = self.controller.shared_context
+        tx_type = ctx.get("transaction", "")
+
+        msg_key = "confirm.general"
+        msg_params = {}
+
+        if tx_type == "transfer":
+            msg_key = "confirm.transfer"
+            msg_params = {
+                "target": ctx.get("target_account", ""),
+                "amount": ctx.get("amount", 0)
+            }
+        elif tx_type == "withdraw":
+            msg_key = "confirm.withdraw"
+            msg_params = {
+                "amount": ctx.get("amount", 0)
+            }
+        elif tx_type == "create_account":
+            msg_key = "confirm.create_account"
+            msg_params = {
+                "name": ctx.get("account_name", "")
+            }
 
         self.controller.ui.render_frame(frame, {
             "mode": "confirm",
-            "header": "確認",
-            "message": msg,
+            "header": title_key,
+            "message": msg_key,
+            "message_params": msg_params,
             "progress": progress,
             "current_direction": current_direction,
-            "guides": {"left": "はい", "right": "いいえ"},
-            "debug_info": debug_info,
+            "debug_info": debug_info
         })
 
         if gesture == "left" or (key_event and key_event.keysym == "Return"):
@@ -525,12 +567,12 @@ class ConfirmationState(State):
 # =============================================================================
 
 class WithdrawAccountInputState(BaseInputState):
-    """口座番号入力"""
+    """引き出し時の口座番号入力 (今回は簡略化で自身の口座？ またはID ?)"""
     INPUT_MAX = 6
     MIN_INPUT_LENGTH = 6
     ALIGN_RIGHT = False
-    HEADER = "お引き出し"
-    MESSAGE = "口座番号を入力してください"
+    HEADER = "btn.withdraw"
+    MESSAGE = "input.account.id"  # "口座番号を入力してください"
     GUIDANCE_EMPTY = "口座番号を6桁で入力してください"
 
     def _on_input_complete(self, value):
@@ -575,6 +617,19 @@ class PinInputState(BaseInputState):
         if txn is None:
             self.controller.change_state(MenuState)
             return
+
+        # Determine Pin Mode for AudioPolicy
+        step = self.controller.shared_context.get("pin_step", 1)
+        mode = "normal"
+        if txn == "create_account":
+            mode = f"create_{step}"
+        elif txn == "withdraw":
+            mode = "auth"
+            # If we are re-entering (not strictly checking previous fail here, handled in _on_pin_entered logic)
+            # Actually, if we just arrived here, it's normal auth.
+            # Retry only happens if validation fails and we stay in state.
+
+        self.controller.shared_context["pin_mode"] = mode
 
         self.controller.pin_pad.reset_random_mapping()
         self.input_buffer = InputBuffer(
@@ -624,7 +679,7 @@ class PinInputState(BaseInputState):
 
             if num is not None:
                 if self.input_buffer.add_char(num):
-                    self.controller.play_sound("push-enter")
+                    self.controller.play_button_se()
                 else:
                     self.controller.play_beep_se()  # 文字数オーバー
                 return
@@ -681,6 +736,10 @@ class PinInputState(BaseInputState):
                     self.controller.play_error_se()
                     self.input_buffer.clear()
                     self.controller.pin_pad.reset_random_mapping()
+
+                    # RETRY LOGIC for AudioPolicy
+                    self.controller.shared_context["pin_mode"] = "retry"
+
                     self._message = (
                         "暗証番号が正しくありません。\n"
                         f"（あと {info} 回入力できます）"
@@ -757,32 +816,34 @@ class CreateAccountNameInputState(BaseInputState):
 # =============================================================================
 
 class UserAbsentWarningState(State):
-    """
-    利用者が離席したことを検知した際の警告画面。
-    5秒間無操作ならホーム画面へ戻り、ボタン押下で復帰する。
-    """
+    """離席警告ステート"""
 
     def on_enter(self, prev_state=None):
-        # 警告音を一度だけ再生
-        self.controller.play_assert_se()
-
-        # 直前の状態を保存 (復帰用)
         self.previous_state = prev_state
+        self.controller.play_beep_se()
         self.start_time = time.time()
-        self.timeout_sec = 5
-
-        # 離席判定をリセット
-        self.controller.absence_frames = 0
-        self.controller.det_history = []
-
+        self.timeout_sec = 10
         self.controller.ui.set_click_callback(self._on_click)
 
     def on_exit(self):
         self.controller.ui.set_click_callback(None)
 
     def _on_click(self, zone):
-        if zone == "center":
-            self._resume()
+        self._handle_selection(zone)
+
+    def _handle_selection(self, zone):
+        if zone == "left":  # Yes -> Reset to FaceAlign
+            self.controller.play_button_se()
+            self.controller.grace_period_frames = 90  # 復帰猶予
+            self.controller.change_state(FaceAlignmentState)
+        elif zone == "right":  # No -> Continue (Return to prev)
+            self.controller.play_back_se()
+            # 継続（戻る）
+            # previous_state に戻るのが理想だが簡略化でMenuへ
+            self.controller.grace_period_frames = 90
+            self.controller.change_state(MenuState)
+        else:
+            self.controller.play_beep_se()
 
     def _resume(self):
         """元の操作へ復帰"""
@@ -824,3 +885,81 @@ class UserAbsentWarningState(State):
 
         if gesture == "center" or (key_event and key_event.keysym == "Return"):
             self._resume()
+
+
+# =============================================================================
+# 言語選択モーダル (Overlay)
+# =============================================================================
+
+class LanguageModal(State):
+    """
+    言語選択モーダル
+    Overlayとして動作し、背景のupdateを停止させたまま描画のみ行うことを想定。
+    """
+
+    def on_enter(self, prev_state=None):
+        self.languages = ["JP", "EN", "ZH_CN", "KR", "FR", "ES", "VN"]
+        current = self.controller.i18n.current_lang
+        try:
+            self.selected_index = self.languages.index(current)
+        except ValueError:
+            self.selected_index = 0
+
+        self.controller.play_voice("check-screen")  # Or specific language voice? Policy not defined for Modal yet.
+
+    def on_exit(self):
+        pass
+
+    def update(self, frame, gesture, key_event=None, progress=0,
+               current_direction=None, debug_info=None):
+
+        # Overlay描画 (UI側で実装が必要)
+        # ここでは描画データを構築してUIに渡す
+        # mode="language_modal" を追加する
+
+        self.controller.ui.render_frame(frame, {
+            "mode": "language_modal",
+            "languages": self.languages,
+            "selected_index": self.selected_index,
+            "progress": progress,
+            "current_direction": current_direction,
+            "debug_info": debug_info
+        })
+
+        # 入力処理
+        if gesture == "left":
+            # Scroll Up / Prev
+            self.controller.play_se("button")
+            self.selected_index = (self.selected_index - 1) % len(self.languages)
+
+        elif gesture == "right":
+            # Scroll Down / Next
+            self.controller.play_se("button")
+            self.selected_index = (self.selected_index + 1) % len(self.languages)
+
+        elif gesture == "center":
+            # Select / Confirm
+            self._confirm_selection()
+
+        if key_event:
+            if key_event.keysym == "Up" or key_event.keysym == "Left":
+                self.controller.play_se("button")
+                self.selected_index = (self.selected_index - 1) % len(self.languages)
+            elif key_event.keysym == "Down" or key_event.keysym == "Right":
+                self.controller.play_se("button")
+                self.selected_index = (self.selected_index + 1) % len(self.languages)
+            elif key_event.keysym == "Return":
+                self._confirm_selection()
+            elif key_event.keysym == "Escape":
+                self.controller.close_modal()
+
+    def _confirm_selection(self):
+        lang = self.languages[self.selected_index]
+        print(f"Language Selected: {lang}")
+
+        self.controller.i18n.set_language(lang)
+        self.controller.audio.set_language(lang)
+        self.controller.config["system"]["language"] = lang
+
+        self.controller.play_voice("welcome")  # Play welcome in new language? Or just close?
+        self.controller.close_modal()

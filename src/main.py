@@ -39,6 +39,9 @@ if getattr(sys, 'frozen', False):
     os.chdir(base_path)
 
 
+from src.core.i18n_manager import I18nManager
+
+
 class SplashScreen:
     """
     起動時のスプラッシュ画面を表示するクラス
@@ -47,6 +50,9 @@ class SplashScreen:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("ATM Simulator Loading")
+
+        # Initialize I18n (Language will be default or Config loaded)
+        self.i18n = I18nManager()
 
         # ウィンドウ枠を消す
         self.root.overrideredirect(True)
@@ -68,10 +74,11 @@ class SplashScreen:
 
         # アイコン/画像
         try:
-            # resources/assets/icon.png を試す
-            img_path = get_resource_path("assets/icon.png")
+            # resources/assets/images/icon.png
+            img_path = get_resource_path("assets/images/icon.png")
             if not os.path.exists(img_path):
-                img_path = get_resource_path("../resources/assets/icon.png")
+                # Fallback to older path just in case
+                img_path = get_resource_path("assets/icon.png")
 
             self.img_orig = Image.open(img_path)
             # 画像サイズを調整（例: 80x80）
@@ -85,7 +92,7 @@ class SplashScreen:
 
         # ステータスラベル
         self.status_label = tk.Label(
-            self.root, text=LOADING_STATUS["INIT"],
+            self.root, text=self.i18n.get("loading.init"),
             fg="white", bg='#2c3e50', font=("MS Gothic", 10)
         )
         self.status_label.pack(pady=10)
@@ -117,6 +124,7 @@ def check_dependencies(splash):
     必須パッケージの依存関係をチェックする。
     """
     try:
+        print("DEBUG: check_dependencies start", flush=True)
         splash.update_status("DEPS", 20)
         import numpy as np
         import cv2

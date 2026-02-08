@@ -12,6 +12,7 @@ import cv2
 import os
 from src.ui.styles import Colors, Fonts, Layout as StyleLayout
 from src.paths import get_resource_path
+import math
 
 
 class Layout:
@@ -22,9 +23,10 @@ class Layout:
 
 
 class ATMUI:
-    def __init__(self, root, config):
+    def __init__(self, root, config, i18n_manager):
         self.root = root
         self.config = config
+        self.i18n = i18n_manager
 
         # 初期ウィンドウサイズ
         self.width = config["ui"]["window_width"]
@@ -65,6 +67,25 @@ class ATMUI:
 
         self._state_data = {}
 
+    def _resolve_text(self, text_or_key, **kwargs):
+        """Resolve text if it's a key, otherwise return as is (for safety)"""
+        # Simple heuristic: if it contains ".", try to resolve
+        # Better: States should pass keys, but sometimes dynamic values.
+        # We assume if it looks like a key, we try.
+        # Or we always try i18n.get, if missing it returns formatting string?
+        # i18n_manager.get returns "MISSING:key" if not found.
+        # We should probably trust the I18nManager to handle non-keys gracefully or check existence.
+        # Actually, let's assume inputs are keys if they match a pattern, or just try.
+        if not isinstance(text_or_key, str):
+            return str(text_or_key)
+
+        # Try to resolve
+        translated = self.i18n.get(text_or_key, **kwargs)
+        if translated.startswith("MISSING:") or translated.startswith("ERROR:"):
+            # It might be a raw string
+            return text_or_key
+        return translated
+
     def _load_images(self):
         """画像リソース読み込み"""
         try:
@@ -104,6 +125,16 @@ class ATMUI:
             },
         }
 
+        # 言語ボタン領域 (ヘッダー右端)
+        lang_btn_w = 120
+        lang_btn_h = 40
+        lx = self.main_width - lang_btn_w - 20
+        ly = (Layout.HEADER_HEIGHT - lang_btn_h) // 2
+        self.language_zone = {
+            "x1": lx, "y1": ly,
+            "x2": lx + lang_btn_w, "y2": ly + lang_btn_h
+        }
+
         # ガイドボタン領域
         footer_y = self.height - Layout.FOOTER_HEIGHT + 10
         self.guide_zones = {
@@ -126,7 +157,12 @@ class ATMUI:
         if new_width != self.width or new_height != self.height:
             self.width = new_width
             self.height = new_height
+            self.width = new_width
+            self.height = new_height
             self._calculate_layout()
+
+    def set_language_callback(self, callback):
+        self._language_callback = callback
 
     def set_click_callback(self, callback):
         self._click_callback = callback
@@ -159,6 +195,13 @@ class ATMUI:
                     clicked_type = "guide"
                     break
 
+        if clicked_zone is None:
+            lz = self.language_zone
+            if (lz["x1"] <= x <= lz["x2"] and
+                    lz["y1"] <= y <= lz["y2"]):
+                clicked_zone = "language"
+                clicked_type = "language"
+
         if clicked_zone is not None:
             # クリックフィードバック: 押下状態を設定
             self._clicked_zone = (clicked_zone, clicked_type)
@@ -172,7 +215,10 @@ class ATMUI:
 
             def execute_callback():
                 self._clicked_zone = None
-                if callback is not None:
+                if clicked_type == "language" and hasattr(self, "_language_callback"):
+                    if self._language_callback:
+                        self._language_callback()
+                elif callback is not None:
                     callback(clicked_zone)
 
             self._click_feedback_timer = self.root.after(150, execute_callback)
@@ -201,6 +247,9 @@ class ATMUI:
         # 4. モード別コンテンツ
         mode = self._state_data.get("mode", "menu")
         self._draw_mode_content(mode)
+
+        # 5. クレジット表記 (常時表示)
+        self._draw_credits()
 
     def _draw_camera_background(self, frame):
         """カメラ映像をメインエリアに全画面で描画"""
@@ -391,8 +440,10 @@ class ATMUI:
         }
         return colors.get(class_name, "#ffffff")
 
-    def _draw_header(self, text):
+    def _draw_header(self, text_key):
         """ヘッダー描画"""
+        text = self._resolve_text(text_key)
+
         self.canvas.create_rectangle(
             0, 0, self.main_width, Layout.HEADER_HEIGHT,
             fill="#004080", stipple="gray50", tags="overlay"
@@ -402,9 +453,41 @@ class ATMUI:
             text=text, fill="white",
             font=("Meiryo UI", 28, "bold"), tags="overlay"
         )
+
+        exit_text = self._resolve_text("ui.esc_exit")
         self.canvas.create_text(
-            self.main_width - 60, 40, text="ESC: 終了",
-            fill="#cccccc", font=("Meiryo UI", 10), tags="overlay"
+            self.main_width - 160, Layout.HEADER_HEIGHT // 2, text=exit_text,
+            fill="#cccccc", font=("Meiryo UI", 10), tags="overlay", anchor="e"
+        )
+
+        # 言語ボタン描画
+        self._draw_language_button()
+
+    def _draw_language_button(self):
+        zone = self.language_zone
+        is_pressed = (self._clicked_zone == ("language", "language"))
+
+        x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
+        offset = 2 if is_pressed else 0
+
+        # 影 (通常時のみ)
+        if not is_pressed:
+            self.canvas.create_rectangle(
+                x1 + 2, y1 + 2, x2 + 2, y2 + 2,
+                fill="black", stipple="gray50", tags="overlay"
+            )
+
+        # 本体
+        self.canvas.create_rectangle(
+            x1 + offset, y1 + offset, x2 + offset, y2 + offset,
+            fill="#0055aa", outline="white", width=2, tags="overlay"
+        )
+
+        # テキスト (常に英語)
+        self.canvas.create_text(
+            (x1 + x2) // 2 + offset, (y1 + y2) // 2 + offset,
+            text="Language", fill="white",
+            font=("Arial", 10, "bold"), tags="overlay"
         )
 
     def _draw_mode_content(self, mode):
@@ -425,6 +508,8 @@ class ATMUI:
             self._draw_exit_overlay()
         elif mode == "absence_warning":
             self._draw_result_overlay()
+        elif mode == "language_modal":
+            self._draw_language_modal_overlay()
 
         # ガイダンスがあれば最前面に描画
         if self._guidance_text:
@@ -449,7 +534,8 @@ class ATMUI:
             return
 
         x1, y1, x2, y2 = zone["x1"], zone["y1"], zone["x2"], zone["y2"]
-        label = btn_data.get("label", "")
+        label_key = btn_data.get("label", "")
+        label = self._resolve_text(label_key)
 
         # 色設定（styles.pyから取得）
         btn_colors = Colors.BUTTON.get(zone_name, Colors.BUTTON["center"])
@@ -493,15 +579,20 @@ class ATMUI:
             )
             cx, cy = (bx1 + bx2) // 2, (by1 + by2) // 2
 
-        # ラベル
-        self.canvas.create_text(
-            cx, cy - 10, text=label, fill=fg,
-            font=Fonts.button(), tags="overlay"
+        # ラベル (自動サイズ調整)
+        self._draw_text_fit(
+            cx, cy - 10, label,
+            font_family=Fonts.button()[0],
+            max_size=Fonts.button()[1],
+            max_width=bx2 - bx1 - 10,
+            fill=fg
         )
 
         # 操作説明
+        # "ui.guidance.action" -> "クリックまたはジェスチャーで選択"
+        guide_text = self._resolve_text("guidance.action")
         self.canvas.create_text(
-            cx, cy + 35, text="クリック / ジェスチャー",
+            cx, cy + 35, text=guide_text,
             fill=fg, font=Fonts.tiny(), tags="overlay"
         )
 
@@ -522,7 +613,9 @@ class ATMUI:
 
     def _draw_input_overlay(self):
         """入力画面"""
-        message = self._state_data.get("message", "")
+        message_key = self._state_data.get("message", "")
+        # msg_params support if needed
+        message = self._resolve_text(message_key)
         input_value = self._state_data.get("input_value", "")
         max_digits = self._state_data.get("input_max", 6)
         unit = self._state_data.get("input_unit", "")
@@ -587,7 +680,8 @@ class ATMUI:
 
     def _draw_pin_input_overlay(self):
         """暗証番号入力画面"""
-        message = self._state_data.get("message", "")
+        message_key = self._state_data.get("message", "")
+        message = self._resolve_text(message_key)
         input_value = self._state_data.get("input_value", "")
         keypad_layout = self._state_data.get("keypad_layout", [])
 
@@ -665,6 +759,11 @@ class ATMUI:
             fill="#ffffff", stipple="gray50",
             outline="#cccccc", width=2, tags="overlay"
         )
+
+        message_key = self._state_data.get("message", "")
+        msg_params = self._state_data.get("message_params", {})
+        message = self._resolve_text(message_key, **msg_params)
+
         self.canvas.create_text(
             cx, cy, text=message, fill="#333333",
             font=("Meiryo UI", 18), tags="overlay"
@@ -672,12 +771,12 @@ class ATMUI:
 
         # はい/いいえボタン
         left_p = progress if current_dir == "left" else 0
-        self._draw_action_button(80, self.height - 90, "はい", "#005bb5", left_p)
+        self._draw_action_button(80, self.height - 90, self._resolve_text("btn.yes"), "#005bb5", left_p)
 
         right_p = progress if current_dir == "right" else 0
         self._draw_action_button(
             self.main_width - 230, self.height - 90,
-            "いいえ", "#e67e22", right_p
+            self._resolve_text("btn.no"), "#e67e22", right_p
         )
 
     def _draw_action_button(self, x, y, label, color, progress=0):
@@ -734,7 +833,9 @@ class ATMUI:
 
     def _draw_result_overlay(self):
         """結果画面"""
-        message = self._state_data.get("message", "")
+        message_key = self._state_data.get("message", "")
+        msg_params = self._state_data.get("message_params", {})
+        message = self._resolve_text(message_key, **msg_params)
         # データがない場合はFalse
         is_error = self._state_data.get("is_error", False)
         countdown = self._state_data.get("countdown", 0)
@@ -762,7 +863,8 @@ class ATMUI:
         # メッセージとカウントダウンをまとめて描画（中央揃え）
         display_text = message
         if countdown > 0:
-            display_text += f"\n\nメニューへ戻る: {countdown}秒"
+            cd_text = self._resolve_text("msg.return_menu_countdown", **{"seconds": countdown})
+            display_text += f"\n\n{cd_text}"
 
         self.canvas.create_text(
             cx, cy, text=display_text, fill="white",
@@ -804,6 +906,94 @@ class ATMUI:
             justify=tk.CENTER, tags="overlay"
         )
 
+    def _draw_credits(self):
+        """クレジット表記 (常時表示)"""
+        # 画面右下 (フッターの少し上、またはフッター内)
+        x = self.main_width - 20
+        y = self.height - 15
+
+        self.canvas.create_text(
+            x, y, text="Voice: ondoku3.com",
+            fill="#888888", font=("Arial", 9),
+            anchor="se", tags="overlay"
+        )
+
+    def _draw_language_modal_overlay(self):
+        """言語選択モーダル描画"""
+        languages = self._state_data.get("languages", [])
+        selected_index = self._state_data.get("selected_index", 0)
+
+        # 背景を暗くする (Stippleハック)
+        self.canvas.create_rectangle(
+            0, 0, self.main_width, self.height,
+            fill="black", stipple="gray50", tags="overlay"
+        )
+
+        cx = self.main_width // 2
+        cy = self.height // 2
+        w, h = 400, 500
+
+        # モーダルボックス
+        self.canvas.create_rectangle(
+            cx - w // 2, cy - h // 2, cx + w // 2, cy + h // 2,
+            fill="#ffffff", outline="#0055aa", width=4, tags="overlay"
+        )
+
+        # タイトル
+        self.canvas.create_text(
+            cx, cy - h // 2 + 40, text="Select Language",
+            fill="#333333", font=("Arial", 20, "bold"), tags="overlay"
+        )
+
+        # リスト表示
+        list_y = cy - h // 2 + 90
+        item_h = 50
+
+        for i, lang in enumerate(languages):
+            y = list_y + i * item_h
+            is_selected = (i == selected_index)
+
+            if is_selected:
+                # ハイライト
+                self.canvas.create_rectangle(
+                    cx - w // 2 + 20, y, cx + w // 2 - 20, y + item_h,
+                    fill="#e0f7fa", outline="#0055aa", width=2, tags="overlay"
+                )
+
+            # 言語名
+            text_color = "#000000" if is_selected else "#666666"
+            font_style = ("Arial", 18, "bold") if is_selected else ("Arial", 16)
+
+            self.canvas.create_text(
+                cx, y + item_h // 2, text=lang,
+                fill=text_color, font=font_style, tags="overlay"
+            )
+
+            if is_selected:
+                # 選択中のアイコン (Checkmark?)
+                self.canvas.create_text(
+                    cx - w // 2 + 40, y + item_h // 2, text="✔",
+                    fill="#0055aa", font=("Arial", 16), tags="overlay"
+                )
+
+        # ガイド矢印
+        # 上
+        self.canvas.create_text(
+            cx, list_y - 25, text="▲",
+            fill="#cccccc", font=("Arial", 14), tags="overlay"
+        )
+        # 下
+        self.canvas.create_text(
+            cx, list_y + len(languages) * item_h + 10, text="▼",
+            fill="#cccccc", font=("Arial", 14), tags="overlay"
+        )
+
+        # 操作ガイド
+        self.canvas.create_text(
+            cx, cy + h // 2 - 30, text="Select: Center  /  Move: Left・Right",
+            fill="#666666", font=("Arial", 10), tags="overlay"
+        )
+
     def _draw_face_align_overlay(self):
         """顔位置合わせ画面 (中央配置を保証)"""
         face_result = self._state_data.get("face_result")
@@ -831,12 +1021,6 @@ class ATMUI:
                 width = 6
 
         # 表示枠 (visual_ratioに基づく中央枠)
-        v_ratio = self.config["face_guide"].get("visual_box_ratio", 0.4)
-        v_size = int(self.height * v_ratio)
-        # キャンバス中心 (cx, cy) に基づいて配置することで完璧に中央寄せ
-        vx = cx - v_size // 2
-        vy = cy - v_size // 2
-
         self.canvas.create_rectangle(
             vx, vy, vx + v_size, vy + v_size,
             outline=color, width=width, tags="overlay"
@@ -982,6 +1166,42 @@ class ATMUI:
                     x1, y2 - 5, x1 + gw, y2,
                     fill=Colors.SUCCESS, tags="overlay"
                 )
+
+    def _draw_text_fit(self, x, y, text, font_family, max_size, max_width, fill, **kwargs):
+        """指定幅に収まるようにフォントサイズを縮小して描画"""
+        size = max_size
+        font = (font_family, size, "bold")
+
+        # 簡易計測 (厳密な計測にはtk.Fontが必要だが、ここではCanvasで試行は重いのでループ制限)
+        # PillowのImageFontを使う手もあるが、依存を増やしたくないため
+        # 文字数ベースのヒューリスティック + 減衰で対応
+
+        # キャンバスの一時テキストで幅計測
+        temp_tag = "_temp_text_measure"
+        self.canvas.create_text(x, y, text=text, font=font, tags=temp_tag)
+        bbox = self.canvas.bbox(temp_tag)
+        self.canvas.delete(temp_tag)
+
+        if bbox:
+            curr_width = bbox[2] - bbox[0]
+
+            # 幅が超えていれば縮小
+            while curr_width > max_width and size > 8:
+                size -= 2
+                font = (font_family, size, "bold")
+                self.canvas.create_text(x, y, text=text, font=font, tags=temp_tag)
+                bbox = self.canvas.bbox(temp_tag)
+                self.canvas.delete(temp_tag)
+                if bbox:
+                    curr_width = bbox[2] - bbox[0]
+                else:
+                    break
+
+        # 描画
+        self.canvas.create_text(
+            x, y, text=text, fill=fill,
+            font=(font_family, size, "bold"), tags="overlay", **kwargs
+        )
 
     # ===== 後方互換性 =====
 

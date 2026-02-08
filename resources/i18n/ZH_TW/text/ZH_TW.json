@@ -1,27 +1,30 @@
 {
     "ui": {
-      "language": "語言",
+      "language": "Language",
       "esc_exit": "ESC: 結束",
-      "select_language": "選擇語言",
+      "select_language": "Select Language",
       "thank_you": "謝謝您的使用",
       "ondokusan": "語音導引：音読さん (ondoku3.com)",
-      "main_menu": "主選單"
+      "main_menu": "主選單",
+      "details": "詳細"
     },
     "btn": {
       "next": "下一步",
       "back": "返回",
       "yes": "是",
       "no": "否",
-      "resume": "繼續操作",
+      "resume": "返回操作",
       "transfer": "轉帳",
       "withdraw": "提款",
-      "create_account": "開設帳戶"
+      "create_account": "開設帳戶",
+      "confirm": "確定",
+      "correct": "更正"
     },
     "input": {
       "pin": {
         "default": "請輸入密碼",
         "first": "請輸入欲設定的4位數密碼",
-        "confirm": "請再次輸入密碼以確認"
+        "confirm": "請再次輸入以確認"
       },
       "name": "請輸入您的姓名",
       "amount": {
@@ -39,22 +42,23 @@
       "invalid_amount": "金額無效。",
       "insufficient_balance": "餘額不足。",
       "account": {
-        "invalid": "輸入的帳號無法使用。",
+        "invalid": "輸入的帳號無法受理。",
         "frozen": "此帳戶目前無法使用。"
       },
       "pin": {
-        "safety": "此密碼安全性不足，請更換其他號碼。",
-        "mismatch": "密碼不一致，請從頭開始。",
-        "mismatch_retry": "密碼不一致，請重新輸入。",
+        "safety": "此密碼無法設定。請輸入其他號碼。",
+        "mismatch": "密碼不一致。請從頭開始。",
+        "mismatch_retry": "密碼不一致。請再次輸入",
         "incorrect": "密碼不正確。\n（還可嘗試 {} 次）",
-        "locked": "密碼錯誤次數已達上限，\n此帳戶暫時無法使用。"
+        "locked": "密碼錯誤次數已達上限，\n此帳戶暫時無法受理。"
       }
     },
     "confirm": {
       "title": "確認輸入內容",
-      "transfer": "收款方：{}\n轉帳金額：{:,}日圓\n\n確定嗎？",
-      "withdraw": "提款金額：{:,}日圓\n\n確定嗎？",
-      "create_account": "姓名：{}\n\n確認以此內容開設帳戶嗎？"
+      "general": "確定嗎？",
+      "transfer": "收款方：{target}\n轉帳金額：{amount:,}日圓\n\n確定嗎？",
+      "withdraw": "提款金額：{amount:,}日圓\n\n確定嗎？",
+      "create_account": "帳戶名稱：{name}\n\n確定嗎？"
     },
     "guidance": {
       "action": "點擊或使用手勢選擇",
@@ -70,15 +74,33 @@
     },
     "msg": {
       "welcome": "歡迎光臨",
-      "complete": "交易已完成。",
-      "absent_warning": "檢測到用戶已離開。\n是否繼續操作？",
-      "return_menu_countdown": "{}秒後返回主選單",
+      "return_menu_countdown": "{seconds}秒後返回主選單",
+      "transaction_complete": "交易已完成",
+      "error": {
+        "frozen": "帳戶已凍結"
+      },
+      "absent_warning": "檢測到長時間離席\n是否返回初始畫面？",
+      "complete": "處理已完成。",
       "account_created": "帳戶已開設。\n\n帳號：{}\n\n",
       "withdraw_complete": "提款已完成。\n提款後餘額：{:,}日圓",
       "face": {
+        "align_title": "臉部檢測",
         "align": "請將臉部對準框框",
         "waiting": "請將臉部對準框框",
         "detecting": "認證中..."
       }
+    },
+    "loading": {
+      "init": "系統初始化中...",
+      "deps": "檢查相依關係中...",
+      "ai": "正在啟動AI引擎（這可能需要一些時間）...",
+      "core": "載入核心組件中...",
+      "done": "準備就緒！"
+    },
+    "error_hints": {
+      "avx": "此CPU可能不支持AVX指令集。請在較新的電腦上重試。",
+      "dll": "缺少必要的系統組件(DLL)。請安裝MSVC可再發行組件包。",
+      "model": "找不到AI模型文件。請檢查 resources/model 資料夾。",
+      "generic": "發生未知錯誤。請檢查日誌或聯繫開發人員。"
     }
   }

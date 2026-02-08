@@ -1,27 +1,30 @@
 {
     "ui": {
-      "language": "Idioma",
+      "language": "Language",
       "esc_exit": "ESC: Salir",
-      "select_language": "Seleccionar idioma",
-      "thank_you": "Gracias por utilizar nuestro cajero",
+      "select_language": "Select Language",
+      "thank_you": "Gracias por utilizar nuestro servicio",
       "ondokusan": "Guía de voz: 音読さん (ondoku3.com)",
-      "main_menu": "Menú principal"
+      "main_menu": "Menú Principal",
+      "details": "Detalles"
     },
     "btn": {
       "next": "Siguiente",
       "back": "Atrás",
       "yes": "Sí",
       "no": "No",
-      "resume": "Reanudar",
+      "resume": "Volver a la operación",
       "transfer": "Transferencia",
       "withdraw": "Retirada",
-      "create_account": "Crear cuenta"
+      "create_account": "Crear cuenta",
+      "confirm": "Confirmar",
+      "correct": "Corregir"
     },
     "input": {
       "pin": {
         "default": "Introduzca su número PIN",
         "first": "Introduzca el PIN de 4 dígitos que desea configurar",
-        "confirm": "Introduzca el mismo PIN de nuevo para confirmar"
+        "confirm": "Introduzca el PIN de nuevo para confirmar"
       },
       "name": "Introduzca su nombre",
       "amount": {
@@ -43,18 +46,19 @@
         "frozen": "Esta cuenta no está disponible actualmente."
       },
       "pin": {
-        "safety": "Este PIN no es seguro. Introduzca un número diferente.",
-        "mismatch": "Los números PIN no coinciden. Por favor, empiece de nuevo.",
-        "mismatch_retry": "Los números PIN no coinciden. Inténtelo de nuevo.",
+        "safety": "PIN no seguro. Por favor, introduzca un número diferente.",
+        "mismatch": "Los números PIN no coinciden. Comience de nuevo.",
+        "mismatch_retry": "Los números PIN no coinciden. Inténtelo de nuevo",
         "incorrect": "PIN incorrecto.\n(Quedan {} intentos)",
-        "locked": "Cuenta bloqueada por demasiados intentos incorrectos.\nNo se puede realizar la operación."
+        "locked": "Cuenta bloqueada por demasiados intentos fallidos.\nOperación no permitida."
       }
     },
     "confirm": {
-      "title": "Confirmación de datos",
-      "transfer": "Destinatario: {}\nImporte: {:,} JPY\n\n¿Es correcto?",
-      "withdraw": "Importe de retirada: {:,} JPY\n\n¿Es correcto?",
-      "create_account": "Nombre: {}\n\n¿Desea crear la cuenta con estos datos?"
+      "title": "Confirmación",
+      "general": "¿Es correcto?",
+      "transfer": "Destinatario: {target}\nImporte: {amount:,} JPY\n\n¿Es correcto?",
+      "withdraw": "Importe de retirada: {amount:,} JPY\n\n¿Es correcto?",
+      "create_account": "Titular de la cuenta: {name}\n\n¿Es correcto?"
     },
     "guidance": {
       "action": "Seleccionar mediante clic o gesto",
@@ -70,15 +74,33 @@
     },
     "msg": {
       "welcome": "Bienvenido",
-      "complete": "Transacción completada.",
-      "absent_warning": "Ausencia de usuario detectada.\n¿Desea continuar?",
-      "return_menu_countdown": "Volviendo al menú en {}s",
+      "return_menu_countdown": "Volviendo al menú en {seconds} s",
+      "transaction_complete": "Transacción completada con éxito",
+      "error": {
+        "frozen": "Cuenta congelada"
+      },
+      "absent_warning": "Se ha detectado una ausencia prolongada\n¿Volver al inicio?",
+      "complete": "Proceso completado.",
       "account_created": "Cuenta creada con éxito.\n\nNúmero de cuenta: {}\n\n",
-      "withdraw_complete": "Retirada completada.\nSaldo tras la operación: {:,} JPY",
+      "withdraw_complete": "Retirada completada.\nSaldo restante: {:,} JPY",
       "face": {
+        "align_title": "Detección Facial",
         "align": "Encuadre su cara",
         "waiting": "Encuadre su cara dentro del recuadro",
         "detecting": "Autenticando..."
       }
+    },
+    "loading": {
+      "init": "Iniciando sistema...",
+      "deps": "Comprobando dependencias...",
+      "ai": "Iniciando motor AI (esto puede tardar)...",
+      "core": "Cargando componentes principales...",
+      "done": "¡Listo!"
+    },
+    "error_hints": {
+      "avx": "Es posible que esta CPU no soporte AVX. Inténtelo en un PC más reciente.",
+      "dll": "Faltan componentes del sistema (DLL). Instale MSVC Redistributable.",
+      "model": "No se encontró el modelo AI. Revise la carpeta resources/model.",
+      "generic": "Error desconocido. Revise los registros o contacte al desarrollador."
     }
   }

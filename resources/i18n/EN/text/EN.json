@@ -5,7 +5,8 @@
       "select_language": "Select Language",
       "thank_you": "Thank you for using our ATM",
       "ondokusan": "Voice guidance: 音読さん (ondoku3.com)",
-      "main_menu": "Main Menu"
+      "main_menu": "Main Menu",
+      "details": "Details"
     },
     "btn": {
       "next": "Next",
@@ -15,7 +16,9 @@
       "resume": "Resume",
       "transfer": "Transfer",
       "withdraw": "Withdrawal",
-      "create_account": "Open Account"
+      "create_account": "Open Account",
+      "confirm": "Confirm",
+      "correct": "Correction"
     },
     "input": {
       "pin": {
@@ -52,9 +55,10 @@
     },
     "confirm": {
       "title": "Confirm Input",
-      "transfer": "Recipient: {}\nAmount: {:,} JPY\n\nIs this correct?",
-      "withdraw": "Withdrawal amount: {:,} JPY\n\nIs this correct?",
-      "create_account": "Name: {}\n\nDo you want to create an account with this name?"
+      "general": "Is this correct?",
+      "transfer": "Recipient: {target}\nAmount: {amount:,} JPY\n\nIs this correct?",
+      "withdraw": "Withdrawal amount: {amount:,} JPY\n\nIs this correct?",
+      "create_account": "Account Name: {name}\n\nIs this correct?"
     },
     "guidance": {
       "action": "Select via Click or Gesture",
@@ -70,15 +74,33 @@
     },
     "msg": {
       "welcome": "Welcome",
-      "complete": "Transaction complete.",
-      "absent_warning": "User absence detected.\nDo you want to continue?",
-      "return_menu_countdown": "Returning to menu in {}s",
+      "return_menu_countdown": "Returning to menu in {seconds}s",
+      "transaction_complete": "Transaction complete",
+      "error": {
+        "frozen": "Account is frozen"
+      },
+      "absent_warning": "User absence detected.\nWould you like to return to the beginning?",
+      "complete": "Processing complete.",
       "account_created": "Account successfully created.\n\nAccount Number: {}\n\n",
       "withdraw_complete": "Withdrawal complete.\nBalance after withdrawal: {:,} JPY",
       "face": {
+        "align_title": "Face Detection",
         "align": "Please align your face within the frame",
         "waiting": "Please align your face within the frame",
         "detecting": "Authenticating..."
       }
+    },
+    "loading": {
+      "init": "Initializing system...",
+      "deps": "Checking dependencies...",
+      "ai": "Starting AI engine (this may take a while)...",
+      "core": "Loading core components...",
+      "done": "Ready!"
+    },
+    "error_hints": {
+      "avx": "This CPU may not support the AVX instruction set. Please try on a newer PC.",
+      "dll": "Required system components (DLL) are missing. Please install the MSVC Redistributable package.",
+      "model": "AI model file not found. Please check the resources/model folder.",
+      "generic": "An unknown error occurred. Please check the logs or contact the developer."
     }
   }

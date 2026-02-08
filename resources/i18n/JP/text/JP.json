@@ -1,11 +1,12 @@
 {
     "ui": {
-      "language": "言語",
+      "language": "Language",
       "esc_exit": "ESC: 終了",
-      "select_language": "言語を選択",
+      "select_language": "Select Language",
       "thank_you": "ご利用ありがとうございました",
       "ondokusan": "音声案内:音読さん(ondoku3.com)",
-      "main_menu": "メインメニュー"
+      "main_menu": "メインメニュー",
+      "details": "詳細"
     },
     "btn": {
       "next": "進む",
@@ -14,8 +15,10 @@
       "no": "いいえ",
       "resume": "操作に戻る",
       "transfer": "お振込み",
-      "withdraw": "お引出し",
-      "create_account": "口座作成"
+      "withdraw": "お引き出し",
+      "create_account": "口座作成",
+      "confirm": "確定",
+      "correct": "訂正"
     },
     "input": {
       "pin": {
@@ -52,9 +55,10 @@
     },
     "confirm": {
       "title": "入力内容の確認",
-      "transfer": "お振込み先 : {}\nお振込み金額 : {:,}円\n\nよろしいですか？",
-      "withdraw": "お引出し金額 : {:,}円\n\nよろしいですか？",
-      "create_account": "お名前 : {}\n\nこの内容で作成しますか？"
+      "general": "よろしいですか？",
+      "transfer": "お振込み先 : {target}\nお振込み金額 : {amount:,}円\n\nよろしいですか？",
+      "withdraw": "お引き出し金額 : {amount:,}円\n\nよろしいですか？",
+      "create_account": "口座名義 : {name}\n\nよろしいですか？"
     },
     "guidance": {
       "action": "クリックまたはジェスチャーで選択",
@@ -70,15 +74,33 @@
     },
     "msg": {
       "welcome": "いらっしゃいませ",
+      "return_menu_countdown": "メニューへ戻る: {seconds}秒",
+      "transaction_complete": "お取り引きが完了しました",
+      "error": {
+        "frozen": "口座が凍結されています"
+      },
+      "absent_warning": "長時間の離席を検知しました\n最初に戻りますか？",
       "complete": "処理が完了しました。",
-      "absent_warning": "ご利用者が離れたことを検知しました。\nこのまま操作を続けますか？",
-      "return_menu_countdown": "メニューへ戻る: {}秒",
       "account_created": "口座を作成しました。\n\n口座番号 : {}\n\n",
       "withdraw_complete": "お引出しが完了しました。\nお引出し後残高：{:,}円",
       "face": {
+        "align_title": "顔検出",
         "align": "顔を枠に合わせてください",
         "waiting": "枠内に顔を合わせてください",
         "detecting": "認証中..."
       }
+    },
+    "loading": {
+      "init": "システムを初期化中...",
+      "deps": "依存関係をチェック中...",
+      "ai": "AIエンジンを起動中 (これには時間がかかります)...",
+      "core": "コアコンポーネントをロード中...",
+      "done": "準備完了！"
+    },
+    "error_hints": {
+      "avx": "このCPUはAVX命令セットをサポートしていない可能性があります。より新しいPCで試してください。",
+      "dll": "必須のシステムコンポーネント(DLL)が不足しています。MSVC再配布可能パッケージをインストールしてください。",
+      "model": "AIモデルファイルが見つかりません。resources/model フォルダを確認してください。",
+      "generic": "不明なエラーが発生しました。ログを確認するか、開発者に問い合わせてください。"
     }
-  }
+}

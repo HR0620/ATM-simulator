@@ -1,32 +1,35 @@
 {
     "ui": {
-      "language": "语言",
+      "language": "Language",
       "esc_exit": "ESC: 退出",
-      "select_language": "选择语言",
+      "select_language": "Select Language",
       "thank_you": "感谢您的使用",
       "ondokusan": "语音提示：音読さん (ondoku3.com)",
-      "main_menu": "主菜单"
+      "main_menu": "主菜单",
+      "details": "详情"
     },
     "btn": {
       "next": "下一步",
       "back": "返回",
       "yes": "是",
       "no": "否",
-      "resume": "恢复操作",
+      "resume": "返回操作",
       "transfer": "转账",
       "withdraw": "取款",
-      "create_account": "开设账户"
+      "create_account": "开设账户",
+      "confirm": "确定",
+      "correct": "更正"
     },
     "input": {
       "pin": {
         "default": "请输入密码",
         "first": "请输入欲设置的4位数字密码",
-        "confirm": "请再次输入密码以确认"
+        "confirm": "请再次输入以进行确认"
       },
       "name": "请输入您的姓名",
       "amount": {
         "default": "请输入金额",
-        "balance": "请输入金额\n当前账户余额：{:,}日元",
+        "balance": "请输入金额\n当前存款余额：{:,}日元",
         "transfer": "请输入转账金额"
       },
       "account": {
@@ -43,18 +46,19 @@
         "frozen": "该账户当前无法使用。"
       },
       "pin": {
-        "safety": "该密码安全性不足，请设置其他号码。",
-        "mismatch": "输入的密码不一致，请从头开始。",
-        "mismatch_retry": "密码不一致，请重新输入。",
-        "incorrect": "密码不正确。\n（还可以尝试 {} 次）",
-        "locked": "由于密码错误次数超过上限，\n该账户已无法受理。"
+        "safety": "该密码无法设置。请输入其他数字。",
+        "mismatch": "输入的密码不一致。请重新开始。",
+        "mismatch_retry": "密码不一致。请再次输入",
+        "incorrect": "密码不正确。\n（还可以输入 {} 次）",
+        "locked": "由于密码错误次数超过上限，\n该账户已无法使用。"
       }
     },
     "confirm": {
       "title": "确认输入内容",
-      "transfer": "收款方：{}\n转账金额：{:,}日元\n\n确定吗？",
-      "withdraw": "取款金额：{:,}日元\n\n确定吗？",
-      "create_account": "姓名：{}\n\n确认以该内容开设账户吗？"
+      "general": "确定吗？",
+      "transfer": "收款方：{target}\n转账金额：{amount:,}日元\n\n确定吗？",
+      "withdraw": "取款金额：{amount:,}日元\n\n确定吗？",
+      "create_account": "账户名称：{name}\n\n确定吗？"
     },
     "guidance": {
       "action": "点击或通过手势选择",
@@ -70,15 +74,33 @@
     },
     "msg": {
       "welcome": "欢迎光临",
+      "return_menu_countdown": "{seconds}秒后返回菜单",
+      "transaction_complete": "交易已完成",
+      "error": {
+        "frozen": "账户已冻结"
+      },
+      "absent_warning": "检测到用户长时间离开\n是否返回初始画面？",
       "complete": "处理已完成。",
-      "absent_warning": "检测到用户离位。\n是否继续操作？",
-      "return_menu_countdown": "{}秒后返回主菜单",
-      "account_created": "账户已创建。\n\n账号：{}\n\n",
+      "account_created": "账户已开设。\n\n账号：{}\n\n",
       "withdraw_complete": "取款已完成。\n取款后余额：{:,}日元",
       "face": {
+        "align_title": "脸部检测",
         "align": "请将脸部对准框内",
         "waiting": "请将脸部对准框内",
-        "detecting": "正在认证..."
+        "detecting": "认证中..."
       }
+    },
+    "loading": {
+      "init": "系统初始化中...",
+      "deps": "检查依赖关系中...",
+      "ai": "正在启动AI引擎（这可能需要一些时间）...",
+      "core": "加载核心组件中...",
+      "done": "准备就绪！"
+    },
+    "error_hints": {
+      "avx": "该CPU可能不支持AVX指令集。请在较新的电脑上重试。",
+      "dll": "缺少必要的系统组件(DLL)。请安装MSVC可再发行组件包。",
+      "model": "找不到AI模型文件。请检查 resources/model 文件夹。",
+      "generic": "发生未知错误。请检查日志或联系开发人员。"
     }
   }
