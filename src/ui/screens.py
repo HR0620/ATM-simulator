@@ -178,11 +178,32 @@ class ATMUI:
             return
 
         # モーダル表示中は背景のクリックを無効化
+        # モーダル表示中は背景クリックを無効化し、モーダル要素だけを受け付ける
         mode = self._state_data.get("mode", "")
         if mode == "language_modal":
             # 現在は言語選択モーダルのみ
             # 必要に応じてここでモーダル内の要素クリック判定を行う
             # 今のところジェスチャーとキーボードのみのため、クリックは無視
+            modal_zones = self._state_data.get("modal_hit_areas", [])
+            for zone in modal_zones:
+                if (zone["x1"] <= x <= zone["x2"] and
+                        zone["y1"] <= y <= zone["y2"]):
+                    clicked_zone = zone["action"]
+                    clicked_type = "modal"
+                    self._clicked_zone = (clicked_zone, clicked_type)
+
+                    if self._click_feedback_timer:
+                        self.root.after_cancel(self._click_feedback_timer)
+
+                    callback = self._click_callback
+
+                    def execute_modal_callback():
+                        self._clicked_zone = None
+                        if callback is not None:
+                            callback(clicked_zone)
+
+                    self._click_feedback_timer = self.root.after(150, execute_modal_callback)
+                    return
             return
 
         clicked_zone = None
@@ -884,7 +905,7 @@ class ATMUI:
         cx = self.main_width // 2
         cy = self.height // 2
 
-        # 背景 (黒)
+  # 背景 (黒)
         self.canvas.create_rectangle(
             0, 0, self.main_width, self.height,
             fill="black", tags="overlay"
@@ -909,7 +930,7 @@ class ATMUI:
         # テキスト (かぶらないように下部に配置)
         self.canvas.create_text(
             cx, self.height - 100,
-            text="ご利用ありがとうございました",
+            text=self._resolve_text("ui.thank_you"),
             fill="white", font=("Meiryo UI", 28, "bold"),
             justify=tk.CENTER, tags="overlay"
         )
@@ -939,7 +960,7 @@ class ATMUI:
 
         cx = self.main_width // 2
         cy = self.height // 2
-        w, h = 400, 500
+        w, h = 420, 520
 
         # モーダルボックス
         self.canvas.create_rectangle(
@@ -949,58 +970,129 @@ class ATMUI:
 
         # タイトル
         self.canvas.create_text(
-            cx, cy - h // 2 + 40, text="Select Language",
+            cx, cy - h // 2 + 36, text=self._resolve_text("ui.select_language"),
             fill="#333333", font=("Arial", 20, "bold"), tags="overlay"
         )
 
-        # リスト表示
-        list_y = cy - h // 2 + 90
-        item_h = 50
+        # リスト表示領域
+        list_top = cy - h // 2 + 90
+        list_bottom = cy + h // 2 - 110
+        visible_count = 7
+        item_h = (list_bottom - list_top) // visible_count
 
-        for i, lang in enumerate(languages):
-            y = list_y + i * item_h
-            is_selected = (i == selected_index)
+        start = 0
+        if len(languages) > visible_count:
+            start = max(0, min(selected_index - visible_count // 2,
+                               len(languages) - visible_count))
+        end = min(len(languages), start + visible_count)
+
+        modal_hit_areas = []
+
+        # 上下ボタン（クリック対応）
+        up_zone = {
+            "action": "lang_prev",
+            "x1": cx - 24, "y1": list_top - 34,
+            "x2": cx + 24, "y2": list_top - 4,
+        }
+        down_zone = {
+            "action": "lang_next",
+            "x1": cx - 24, "y1": list_bottom + 4,
+            "x2": cx + 24, "y2": list_bottom + 34,
+        }
+        modal_hit_areas.extend([up_zone, down_zone])
+
+        for zone, symbol in [(up_zone, "▲"), (down_zone, "▼")]:
+            is_clicked = self._clicked_zone == (zone["action"], "modal")
+            fill = "#d8ecff" if is_clicked else "#eef6ff"
+            self.canvas.create_rectangle(
+                zone["x1"], zone["y1"], zone["x2"], zone["y2"],
+                fill=fill, outline="#2a79c5", width=2, tags="overlay"
+            )
+            self.canvas.create_text(
+                (zone["x1"] + zone["x2"]) // 2,
+                (zone["y1"] + zone["y2"]) // 2,
+                text=symbol, fill="#2a79c5", font=("Arial", 13, "bold"), tags="overlay"
+            )
+
+        # 言語リスト
+        for row, idx in enumerate(range(start, end)):
+            lang_item = languages[idx]
+            y1 = list_top + row * item_h
+            y2 = y1 + item_h - 4
+            is_selected = (idx == selected_index)
 
             if is_selected:
                 # ハイライト
                 self.canvas.create_rectangle(
-                    cx - w // 2 + 20, y, cx + w // 2 - 20, y + item_h,
+                    cx - w // 2 + 24, y1, cx + w // 2 - 24, y2,
                     fill="#e0f7fa", outline="#0055aa", width=2, tags="overlay"
                 )
 
             # 言語名
             text_color = "#000000" if is_selected else "#666666"
-            font_style = ("Arial", 18, "bold") if is_selected else ("Arial", 16)
+            font_style = ("Arial", 17, "bold") if is_selected else ("Arial", 15)
+            display_name = lang_item.get("display_name", lang_item.get("code", ""))
 
             self.canvas.create_text(
-                cx, y + item_h // 2, text=lang,
+                cx, (y1 + y2) // 2,
+                text=display_name,
                 fill=text_color, font=font_style, tags="overlay"
             )
 
             if is_selected:
-                # 選択中のアイコン (Checkmark?)
+                # 選択中のアイコン (Checkmark)
                 self.canvas.create_text(
-                    cx - w // 2 + 40, y + item_h // 2, text="✔",
+                    cx - w // 2 + 45, (y1 + y2) // 2, text="✔",
                     fill="#0055aa", font=("Arial", 16), tags="overlay"
                 )
 
-        # ガイド矢印
-        # 上
-        self.canvas.create_text(
-            cx, list_y - 25, text="▲",
-            fill="#cccccc", font=("Arial", 14), tags="overlay"
-        )
-        # 下
-        self.canvas.create_text(
-            cx, list_y + len(languages) * item_h + 10, text="▼",
-            fill="#cccccc", font=("Arial", 14), tags="overlay"
-        )
+            modal_hit_areas.append({
+                "action": f"lang_select:{idx}",
+                "x1": cx - w // 2 + 24, "y1": y1,
+                "x2": cx + w // 2 - 24, "y2": y2,
+            })
+
+        # 決定/戻るボタン
+        btn_y1 = cy + h // 2 - 86
+        btn_y2 = cy + h // 2 - 36
+        confirm_zone = {
+            "action": "lang_confirm",
+            "x1": cx - 170, "y1": btn_y1, "x2": cx - 20, "y2": btn_y2
+        }
+        back_zone = {
+            "action": "lang_back",
+            "x1": cx + 20, "y1": btn_y1, "x2": cx + 170, "y2": btn_y2
+        }
+        modal_hit_areas.extend([confirm_zone, back_zone])
+
+        for zone, text_key, fill in [
+            (confirm_zone, "btn.confirm", "#005bb5"),
+            (back_zone, "btn.back", "#e67e22"),
+        ]:
+            is_clicked = self._clicked_zone == (zone["action"], "modal")
+            color = "#003d7a" if is_clicked and text_key == "btn.confirm" else fill
+            if is_clicked and text_key == "btn.back":
+                color = "#b86b1d"
+            self.canvas.create_rectangle(
+                zone["x1"], zone["y1"], zone["x2"], zone["y2"],
+                fill=color, outline=Colors.WHITE, width=2, tags="overlay"
+            )
+            self.canvas.create_text(
+                (zone["x1"] + zone["x2"]) // 2,
+                (zone["y1"] + zone["y2"]) // 2,
+                text=self._resolve_text(text_key),
+                fill="white", font=("Meiryo UI", 12, "bold"), tags="overlay"
+            )
 
         # 操作ガイド
         self.canvas.create_text(
-            cx, cy + h // 2 - 30, text="Select: Center  /  Move: Left・Right",
+            cx, cy + h // 2 - 14,
+            text="Left: Confirm / Right: Back / ▲▼: Move",
             fill="#666666", font=("Arial", 10), tags="overlay"
         )
+
+        # クリック判定領域を状態に保存
+        self._state_data["modal_hit_areas"] = modal_hit_areas
 
     def _draw_face_align_overlay(self):
         """顔位置合わせ画面 (中央配置を保証)"""
@@ -1027,24 +1119,6 @@ class ATMUI:
             elif status == "confirmed":
                 color = "#00ff00"
                 width = 6
-
-        # 表示枠 (visual_ratioに基づく中央枠)
-        self.canvas.create_rectangle(
-            vx, vy, vx + v_size, vy + v_size,
-            outline=color, width=width, tags="overlay"
-        )
-
-        msg = ""
-        if status == "waiting":
-            msg = "枠内に顔を合わせてください"
-        elif status == "detecting":
-            msg = "認証中..."
-
-        if msg:
-            self.canvas.create_text(
-                cx, vy + v_size + 40, text=msg,
-                fill=color, font=("Meiryo UI", 24, "bold"), tags="overlay"
-            )
 
     def show_guidance(self, text, is_error=False):
         """ガイダンスメッセージを一時的に表示 (レート制限あり)"""
@@ -1109,7 +1183,7 @@ class ATMUI:
         if "left" in guides:
             left_p = progress if current_dir == "left" else 0
             zone = self.guide_zones["left"]
-            label = f"{guides['left']}"
+            label = self._resolve_text(guides['left'])
             color = Colors.BUTTON["left"]["bg"]
             self._draw_guide_button("left", zone, label, color, left_p)
 
@@ -1117,7 +1191,7 @@ class ATMUI:
         if "right" in guides:
             right_p = progress if current_dir == "right" else 0
             zone = self.guide_zones["right"]
-            label = f"{guides['right']}"
+            label = self._resolve_text(guides['right'])
             color = Colors.BUTTON["right"]["bg"]
             self._draw_guide_button("right", zone, label, color, right_p)
 

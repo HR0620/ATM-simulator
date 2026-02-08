@@ -907,16 +907,58 @@ class LanguageModal(State):
 
     def on_enter(self, prev_state=None):
         self.languages = ["JP", "EN", "ZH_CN", "KR", "FR", "ES", "VN"]
+        import json
+        from src.paths import get_resource_path
+
+        lang_path = get_resource_path("config/languages.json")
+        with open(lang_path, "r", encoding="utf-8") as f:
+            all_langs = json.load(f).get("languages", [])
+
+        self.languages = [
+            {"code": item["code"], "display_name": item.get("display_name", item["code"])}
+            for item in all_langs
+            if item.get("enabled", True)
+        ]
+        if not self.languages:
+            self.languages = [{"code": "JP", "display_name": "日本語"}]
+
         current = self.controller.i18n.current_lang
+        codes = [item["code"] for item in self.languages]
         try:
-            self.selected_index = self.languages.index(current)
+            self.selected_index = codes.index(current)
         except ValueError:
             self.selected_index = 0
 
         self.controller.play_voice("check-screen")  # Or specific language voice? Policy not defined for Modal yet.
+        self.controller.ui.set_click_callback(self._on_click)
 
     def on_exit(self):
         pass
+        self.controller.ui.set_click_callback(None)
+
+    def _move_prev(self):
+        self.controller.play_se("button")
+        self.selected_index = (self.selected_index - 1) % len(self.languages)
+
+    def _move_next(self):
+        self.controller.play_se("button")
+        self.selected_index = (self.selected_index + 1) % len(self.languages)
+
+    def _on_click(self, action):
+        if action == "lang_prev":
+            self._move_prev()
+        elif action == "lang_next":
+            self._move_next()
+        elif action.startswith("lang_select:"):
+            index = int(action.split(":", 1)[1])
+            if 0 <= index < len(self.languages):
+                self.controller.play_se("button")
+                self.selected_index = index
+        elif action == "lang_confirm":
+            self._confirm_selection()
+        elif action == "lang_back":
+            self.controller.play_back_se()
+            self.controller.close_modal()
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
@@ -948,26 +990,29 @@ class LanguageModal(State):
         elif gesture == "center":
             # Select / Confirm
             self._confirm_selection()
+        elif gesture == "right":
+            # Back to previous state
+            self.controller.play_back_se()
+            self.controller.close_modal()
 
         if key_event:
-            if key_event.keysym == "Up" or key_event.keysym == "Left":
-                self.controller.play_se("button")
-                self.selected_index = (self.selected_index - 1) % len(self.languages)
-            elif key_event.keysym == "Down" or key_event.keysym == "Right":
-                self.controller.play_se("button")
-                self.selected_index = (self.selected_index + 1) % len(self.languages)
+            if key_event.keysym in ("Up", "Left"):
+                self._move_prev()
+            elif key_event.keysym in ("Down", "Right"):
+                self._move_next()
             elif key_event.keysym == "Return":
                 self._confirm_selection()
             elif key_event.keysym == "Escape":
+                self.controller.play_back_se()
                 self.controller.close_modal()
 
     def _confirm_selection(self):
-        lang = self.languages[self.selected_index]
+        lang = self.languages[self.selected_index]["code"]
         print(f"Language Selected: {lang}")
 
         self.controller.i18n.set_language(lang)
         self.controller.audio.set_language(lang)
         self.controller.config["system"]["language"] = lang
 
-        self.controller.play_voice("welcome")  # Play welcome in new language? Or just close?
+        self.controller.play_voice("welcome")
         self.controller.close_modal()

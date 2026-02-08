@@ -247,6 +247,7 @@ class ATMController:
 
         try:
             self.audio.play("come-again", force=True)
+            self.audio.play_voice("come-again")
         except Exception:
             pass
         self.root.after(5000, self._finalize_exit)
