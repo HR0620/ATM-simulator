@@ -6,15 +6,18 @@ This module is PURELY DECLARATIVE and should not contain UI logic or side effect
 """
 
 
+from src.core.transaction_context import TransactionContext
+
+
 class AudioPolicy:
     @staticmethod
-    def get_audio_key(state_instance, context: dict) -> str | None:
+    def get_audio_key(state_instance, context: TransactionContext) -> str | None:
         """
         Determines the audio key to play based on the state and context.
 
         Args:
             state_instance: The current State instance.
-            context: The shared_context dictionary from the controller.
+            context: The TransactionContext instance from the controller.
 
         Returns:
             str: The audio key (e.g., "welcome", "retry-pin") or None if no audio should play.
@@ -53,13 +56,12 @@ class AudioPolicy:
         if state_name == "PinInputState":
             # Determine mode from context
             # "pin_mode" should be set by the state logic (normal, create_1, create_2, retry)
-            # If not explicitly set, fallback logic (though state should set it)
-            mode = context.get("pin_mode", "normal")
+            mode = context.pin_mode if context.pin_mode else "normal"
 
             if mode == "create_1":
                 return "enter-new-pin"
             if mode == "create_2":
-                return "enter-new-pin"  # or retry-pin? Plan said confirm -> enter-new-pin
+                return "enter-new-pin"
             if mode == "retry":
                 return "retry-pin"
 
@@ -68,7 +70,7 @@ class AudioPolicy:
 
         # 9. ResultState -> result type Dependent
         if state_name == "ResultState":
-            if context.get("is_account_created"):
+            if context.is_account_created:
                 return "create-account"
             return "come-again"
 

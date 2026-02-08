@@ -177,6 +177,14 @@ class ATMUI:
         if x > self.main_width:
             return
 
+        # モーダル表示中は背景のクリックを無効化
+        mode = self._state_data.get("mode", "")
+        if mode == "language_modal":
+            # 現在は言語選択モーダルのみ
+            # 必要に応じてここでモーダル内の要素クリック判定を行う
+            # 今のところジェスチャーとキーボードのみのため、クリックは無視
+            return
+
         clicked_zone = None
         clicked_type = None  # "button" or "guide"
 
