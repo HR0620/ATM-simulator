@@ -1,0 +1,84 @@
+{
+    "ui": {
+      "language": "Langue",
+      "esc_exit": "ESC: Quitter",
+      "select_language": "Choisir la langue",
+      "thank_you": "Merci d'avoir utilisé notre service",
+      "ondokusan": "Guidage vocal: Ondokusan (ondoku3.com)",
+      "main_menu": "Menu Principal"
+    },
+    "btn": {
+      "next": "Suivant",
+      "back": "Retour",
+      "yes": "Oui",
+      "no": "Non",
+      "resume": "Reprendre",
+      "transfer": "Virement",
+      "withdraw": "Retrait",
+      "create_account": "Créer un compte"
+    },
+    "input": {
+      "pin": {
+        "default": "Veuillez saisir votre code PIN",
+        "first": "Saisissez un code PIN à 4 chiffres à définir",
+        "confirm": "Saisissez à nouveau votre code PIN pour confirmation"
+      },
+      "name": "Veuillez saisir votre nom",
+      "amount": {
+        "default": "Veuillez saisir le montant",
+        "balance": "Saisissez le montant\nSolde actuel : {:,} JPY",
+        "transfer": "Saisissez le montant du virement"
+      },
+      "account": {
+        "self": "Veuillez saisir le numéro de compte",
+        "target": "Veuillez saisir le numéro de compte du destinataire"
+      }
+    },
+    "error": {
+      "general": "Une erreur est survenue.",
+      "invalid_amount": "Montant invalide.",
+      "insufficient_balance": "Solde insuffisant.",
+      "account": {
+        "invalid": "Le numéro de compte saisi n'est pas valide.",
+        "frozen": "Ce compte est actuellement indisponible."
+      },
+      "pin": {
+        "safety": "Ce code PIN n'est pas sécurisé. Veuillez en saisir un autre.",
+        "mismatch": "Les codes PIN ne correspondent pas. Veuillez recommencer.",
+        "mismatch_retry": "Les codes PIN ne correspondent pas. Veuillez réessayer.",
+        "incorrect": "Code PIN incorrect.\n(Encore {} tentatives)",
+        "locked": "Compte verrouillé suite à trop de tentatives erronées.\nOpération impossible."
+      }
+    },
+    "confirm": {
+      "title": "Confirmation de saisie",
+      "transfer": "Destinataire : {}\nMontant : {:,} JPY\n\nEst-ce correct ?",
+      "withdraw": "Montant du retrait : {:,} JPY\n\nEst-ce correct ?",
+      "create_account": "Nom : {}\n\nSouhaitez-vous créer ce compte ?"
+    },
+    "guidance": {
+      "action": "Sélection par clic ou geste",
+      "select_action": "Veuillez choisir 'Suivant' ou 'Retour'",
+      "confirm_choice": "Veuillez choisir 'Oui' ou 'Non'",
+      "check_input": "Veuillez vérifier vos informations",
+      "empty": {
+        "pin": "Veuillez saisir votre code PIN",
+        "account": "Saisissez un numéro de compte à 6 chiffres",
+        "name": "Veuillez saisir votre nom",
+        "amount": "Veuillez saisir le montant"
+      }
+    },
+    "msg": {
+      "welcome": "Bienvenue",
+      "complete": "Opération terminée.",
+      "absent_warning": "Détection d'absence de l'utilisateur.\nContinuer l'opération ?",
+      "return_menu_countdown": "Retour au menu dans {}s",
+      "account_created": "Compte créé avec succès.\n\nNuméro de compte : {}\n\n",
+      "withdraw_complete": "Retrait effectué.\nSolde après retrait : {:,} JPY",
+      "face": {
+        "align": "Veuillez cadrer votre visage",
+        "waiting": "Veuillez cadrer votre visage dans le cadre",
+        "detecting": "Authentification en cours..."
+      }
+    }
+  }

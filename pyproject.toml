@@ -9,7 +9,7 @@ description = "AI Non-Contact ATM Simulator using Gesture Recognition"
 authors = [
     {name = "Renju (HR0620)"},
 ]
-requires-python = ">=3.13"
+requires-python = "<=3.13"
 dependencies = [
   "opencv-python",
   "numpy",

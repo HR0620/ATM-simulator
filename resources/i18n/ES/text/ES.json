@@ -1,0 +1,84 @@
+{
+    "ui": {
+      "language": "Idioma",
+      "esc_exit": "ESC: Salir",
+      "select_language": "Seleccionar idioma",
+      "thank_you": "Gracias por utilizar nuestro cajero",
+      "ondokusan": "Guía de voz: Ondokusan (ondoku3.com)",
+      "main_menu": "Menú principal"
+    },
+    "btn": {
+      "next": "Siguiente",
+      "back": "Atrás",
+      "yes": "Sí",
+      "no": "No",
+      "resume": "Reanudar",
+      "transfer": "Transferencia",
+      "withdraw": "Retirada",
+      "create_account": "Crear cuenta"
+    },
+    "input": {
+      "pin": {
+        "default": "Introduzca su número PIN",
+        "first": "Introduzca el PIN de 4 dígitos que desea configurar",
+        "confirm": "Introduzca el mismo PIN de nuevo para confirmar"
+      },
+      "name": "Introduzca su nombre",
+      "amount": {
+        "default": "Introduzca el importe",
+        "balance": "Introduzca el importe\nSaldo actual: {:,} JPY",
+        "transfer": "Introduzca el importe de la transferencia"
+      },
+      "account": {
+        "self": "Introduzca su número de cuenta",
+        "target": "Introduzca el número de cuenta del destinatario"
+      }
+    },
+    "error": {
+      "general": "Ha ocurrido un error.",
+      "invalid_amount": "Importe no válido.",
+      "insufficient_balance": "Saldo insuficiente.",
+      "account": {
+        "invalid": "El número de cuenta introducido no es válido.",
+        "frozen": "Esta cuenta no está disponible actualmente."
+      },
+      "pin": {
+        "safety": "Este PIN no es seguro. Introduzca un número diferente.",
+        "mismatch": "Los números PIN no coinciden. Por favor, empiece de nuevo.",
+        "mismatch_retry": "Los números PIN no coinciden. Inténtelo de nuevo.",
+        "incorrect": "PIN incorrecto.\n(Quedan {} intentos)",
+        "locked": "Cuenta bloqueada por demasiados intentos incorrectos.\nNo se puede realizar la operación."
+      }
+    },
+    "confirm": {
+      "title": "Confirmación de datos",
+      "transfer": "Destinatario: {}\nImporte: {:,} JPY\n\n¿Es correcto?",
+      "withdraw": "Importe de retirada: {:,} JPY\n\n¿Es correcto?",
+      "create_account": "Nombre: {}\n\n¿Desea crear la cuenta con estos datos?"
+    },
+    "guidance": {
+      "action": "Seleccionar mediante clic o gesto",
+      "select_action": "Seleccione 'Siguiente' o 'Atrás'",
+      "confirm_choice": "Seleccione 'Sí' o 'No'",
+      "check_input": "Verifique los datos introducidos",
+      "empty": {
+        "pin": "Introduzca su número PIN",
+        "account": "Introduzca un número de cuenta de 6 dígitos",
+        "name": "Introduzca su nombre",
+        "amount": "Introduzca el importe"
+      }
+    },
+    "msg": {
+      "welcome": "Bienvenido",
+      "complete": "Transacción completada.",
+      "absent_warning": "Ausencia de usuario detectada.\n¿Desea continuar?",
+      "return_menu_countdown": "Volviendo al menú en {}s",
+      "account_created": "Cuenta creada con éxito.\n\nNúmero de cuenta: {}\n\n",
+      "withdraw_complete": "Retirada completada.\nSaldo tras la operación: {:,} JPY",
+      "face": {
+        "align": "Encuadre su cara",
+        "waiting": "Encuadre su cara dentro del recuadro",
+        "detecting": "Autenticando..."
+      }
+    }
+  }

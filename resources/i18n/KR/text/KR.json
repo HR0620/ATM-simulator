@@ -1,0 +1,84 @@
+{
+    "ui": {
+      "language": "언어",
+      "esc_exit": "ESC: 종료",
+      "select_language": "언어 선택",
+      "thank_you": "이용해 주셔서 감사합니다",
+      "ondokusan": "음성 안내: Ondokusan (ondoku3.com)",
+      "main_menu": "메인 메뉴"
+    },
+    "btn": {
+      "next": "다음",
+      "back": "뒤로",
+      "yes": "예",
+      "no": "아니요",
+      "resume": "작업으로 복귀",
+      "transfer": "계좌 이체",
+      "withdraw": "출금",
+      "create_account": "계좌 개설"
+    },
+    "input": {
+      "pin": {
+        "default": "비밀번호를 입력해 주십시오",
+        "first": "설정할 비밀번호(4자리)를 입력해 주십시오",
+        "confirm": "확인을 위해 다시 한번 입력해 주십시오"
+      },
+      "name": "성함을 입력해 주십시오",
+      "amount": {
+        "default": "금액을 입력해 주십시오",
+        "balance": "금액을 입력해 주십시오\n현재 잔액: {:,}엔",
+        "transfer": "이체 금액을 입력해 주십시오"
+      },
+      "account": {
+        "self": "계좌번호를 입력해 주십시오",
+        "target": "이체하실 계좌번호를 입력해 주십시오"
+      }
+    },
+    "error": {
+      "general": "오류가 발생했습니다.",
+      "invalid_amount": "금액이 올바르지 않습니다.",
+      "insufficient_balance": "잔액이 부족합니다.",
+      "account": {
+        "invalid": "입력하신 계좌번호는 처리할 수 없습니다.",
+        "frozen": "현재 이 계좌는 이용하실 수 없습니다."
+      },
+      "pin": {
+        "safety": "해당 비밀번호는 설정할 수 없습니다. 다른 번호를 입력해 주십시오.",
+        "mismatch": "비밀번호가 일치하지 않습니다. 처음부터 다시 시도해 주십시오.",
+        "mismatch_retry": "비밀번호가 일치하지 않습니다. 다시 입력해 주십시오.",
+        "incorrect": "비밀번호가 틀렸습니다.\n(앞으로 {}회 더 시도할 수 있습니다)",
+        "locked": "비밀번호 입력 횟수 초과로 인해\n이 계좌는 처리할 수 없습니다."
+      }
+    },
+    "confirm": {
+      "title": "입력 내용 확인",
+      "transfer": "이체처: {}\n이체 금액: {:,}엔\n\n맞습니까?",
+      "withdraw": "출금 금액: {:,}엔\n\n맞습니까?",
+      "create_account": "성함: {}\n\n이 내용으로 개설하시겠습니까?"
+    },
+    "guidance": {
+      "action": "클릭 또는 제스처로 선택",
+      "select_action": "'다음' 또는 '뒤로'를 선택해 주십시오",
+      "confirm_choice": "'예' 또는 '아니요'를 선택해 주십시오",
+      "check_input": "입력 내용을 확인해 주십시오",
+      "empty": {
+        "pin": "비밀번호를 입력해 주십시오",
+        "account": "계좌번호 6자리를 입력해 주십시오",
+        "name": "성함을 입력해 주십시오",
+        "amount": "금액을 입력해 주십시오"
+      }
+    },
+    "msg": {
+      "welcome": "어서 오십시오",
+      "complete": "처리가 완료되었습니다.",
+      "absent_warning": "사용자가 자리를 비운 것을 감지했습니다.\n계속 진행하시겠습니까?",
+      "return_menu_countdown": "{}초 후 메뉴로 돌아갑니다",
+      "account_created": "계좌가 개설되었습니다.\n\n계좌번호: {}\n\n",
+      "withdraw_complete": "출금이 완료되었습니다.\n출금 후 잔액: {:,}엔",
+      "face": {
+        "align": "얼굴을 프레임에 맞춰 주십시오",
+        "waiting": "프레임 안에 얼굴을 맞춰 주십시오",
+        "detecting": "인증 중..."
+      }
+    }
+  }

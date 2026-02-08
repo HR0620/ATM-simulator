@@ -1,0 +1,84 @@
+{
+    "ui": {
+      "language": "Language",
+      "esc_exit": "ESC: Exit",
+      "select_language": "Select Language",
+      "thank_you": "Thank you for using our ATM",
+      "ondokusan": "Voice guidance: Ondokusan (ondoku3.com)",
+      "main_menu": "Main Menu"
+    },
+    "btn": {
+      "next": "Next",
+      "back": "Back",
+      "yes": "Yes",
+      "no": "No",
+      "resume": "Resume",
+      "transfer": "Transfer",
+      "withdraw": "Withdrawal",
+      "create_account": "Open Account"
+    },
+    "input": {
+      "pin": {
+        "default": "Please enter your PIN",
+        "first": "Please enter a 4-digit PIN to set",
+        "confirm": "Please enter the same PIN again for confirmation"
+      },
+      "name": "Please enter your name",
+      "amount": {
+        "default": "Please enter amount",
+        "balance": "Please enter amount\nCurrent balance: {:,} JPY",
+        "transfer": "Please enter transfer amount"
+      },
+      "account": {
+        "self": "Please enter your account number",
+        "target": "Please enter the recipient's account number"
+      }
+    },
+    "error": {
+      "general": "An error has occurred.",
+      "invalid_amount": "Invalid amount.",
+      "insufficient_balance": "Insufficient balance.",
+      "account": {
+        "invalid": "The entered account number is invalid.",
+        "frozen": "This account is currently unavailable."
+      },
+      "pin": {
+        "safety": "This PIN is not secure. Please enter a different number.",
+        "mismatch": "PINs do not match. Please start over from the beginning.",
+        "mismatch_retry": "PINs do not match. Please try again.",
+        "incorrect": "Incorrect PIN.\n({} attempts remaining)",
+        "locked": "Account locked due to too many incorrect attempts.\nThis account cannot be used."
+      }
+    },
+    "confirm": {
+      "title": "Confirm Input",
+      "transfer": "Recipient: {}\nAmount: {:,} JPY\n\nIs this correct?",
+      "withdraw": "Withdrawal amount: {:,} JPY\n\nIs this correct?",
+      "create_account": "Name: {}\n\nDo you want to create an account with this name?"
+    },
+    "guidance": {
+      "action": "Select via Click or Gesture",
+      "select_action": "Please select 'Next' or 'Back'",
+      "confirm_choice": "Please select 'Yes' or 'No'",
+      "check_input": "Please check your input",
+      "empty": {
+        "pin": "Please enter your PIN",
+        "account": "Please enter 6-digit account number",
+        "name": "Please enter your name",
+        "amount": "Please enter amount"
+      }
+    },
+    "msg": {
+      "welcome": "Welcome",
+      "complete": "Transaction complete.",
+      "absent_warning": "User absence detected.\nDo you want to continue?",
+      "return_menu_countdown": "Returning to menu in {}s",
+      "account_created": "Account successfully created.\n\nAccount Number: {}\n\n",
+      "withdraw_complete": "Withdrawal complete.\nBalance after withdrawal: {:,} JPY",
+      "face": {
+        "align": "Please align your face within the frame",
+        "waiting": "Please align your face within the frame",
+        "detecting": "Authenticating..."
+      }
+    }
+  }

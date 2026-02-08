@@ -1,15 +1,19 @@
 # Python
 __pycache__/
 
-.mypy_cache/
+.mypy_cac
+# 
+
 # Virtual Environment
 .venv/
 
 # Editor/IDE.
 .vscode/
 
-# Project Data (Dynamic/Private)
+# Project Data
 data/
+logs/
+
 
 dist/
 
@@ -22,3 +26,7 @@ build/
 boot_log.txt
 
 error_log.txt
+
+memo.txtrror_log.txt
+
+memo.txt

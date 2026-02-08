@@ -1,0 +1,84 @@
+{
+    "ui": {
+      "language": "语言",
+      "esc_exit": "ESC: 退出",
+      "select_language": "选择语言",
+      "thank_you": "感谢您的使用",
+      "ondokusan": "语音提示：Ondokusan (ondoku3.com)",
+      "main_menu": "主菜单"
+    },
+    "btn": {
+      "next": "下一步",
+      "back": "返回",
+      "yes": "是",
+      "no": "否",
+      "resume": "恢复操作",
+      "transfer": "转账",
+      "withdraw": "取款",
+      "create_account": "开设账户"
+    },
+    "input": {
+      "pin": {
+        "default": "请输入密码",
+        "first": "请输入欲设置的4位数字密码",
+        "confirm": "请再次输入密码以确认"
+      },
+      "name": "请输入您的姓名",
+      "amount": {
+        "default": "请输入金额",
+        "balance": "请输入金额\n当前账户余额：{:,}日元",
+        "transfer": "请输入转账金额"
+      },
+      "account": {
+        "self": "请输入账号",
+        "target": "请输入转账目标账号"
+      }
+    },
+    "error": {
+      "general": "发生错误。",
+      "invalid_amount": "金额无效。",
+      "insufficient_balance": "余额不足。",
+      "account": {
+        "invalid": "输入的账号无法受理。",
+        "frozen": "该账户当前无法使用。"
+      },
+      "pin": {
+        "safety": "该密码安全性不足，请设置其他号码。",
+        "mismatch": "输入的密码不一致，请从头开始。",
+        "mismatch_retry": "密码不一致，请重新输入。",
+        "incorrect": "密码不正确。\n（还可以尝试 {} 次）",
+        "locked": "由于密码错误次数超过上限，\n该账户已无法受理。"
+      }
+    },
+    "confirm": {
+      "title": "确认输入内容",
+      "transfer": "收款方：{}\n转账金额：{:,}日元\n\n确定吗？",
+      "withdraw": "取款金额：{:,}日元\n\n确定吗？",
+      "create_account": "姓名：{}\n\n确认以该内容开设账户吗？"
+    },
+    "guidance": {
+      "action": "点击或通过手势选择",
+      "select_action": "请选择“下一步”或“返回”",
+      "confirm_choice": "请选择“是”或“否”",
+      "check_input": "请确认输入内容",
+      "empty": {
+        "pin": "请输入密码",
+        "account": "请输入6位数字账号",
+        "name": "请输入姓名",
+        "amount": "请输入金额"
+      }
+    },
+    "msg": {
+      "welcome": "欢迎光临",
+      "complete": "处理已完成。",
+      "absent_warning": "检测到用户离位。\n是否继续操作？",
+      "return_menu_countdown": "{}秒后返回主菜单",
+      "account_created": "账户已创建。\n\n账号：{}\n\n",
+      "withdraw_complete": "取款已完成。\n取款后余额：{:,}日元",
+      "face": {
+        "align": "请将脸部对准框内",
+        "waiting": "请将脸部对准框内",
+        "detecting": "正在认证..."
+      }
+    }
+  }

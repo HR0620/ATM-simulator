@@ -1,52 +1,54 @@
+audio:
+  se_cooldown: 0.1
+  voice_priority: true
 camera:
-  device_id: 0       # カメラのデバイスID（通常は0。外付けなら1の場合あり）
-  width: 960         # カメラの横幅解像度
-  height: 720        # カメラの縦幅解像度
-  fps: 60            # フレームレート
-
-ui:
-  window_width: 1024               # アプリウィンドウの幅
-  window_height: 768               # アプリウィンドウの高さ
-  title: "AI-based Touchless Machine (ATM)"   # ウィンドウタイトル
-  debug_mode: false                 # デバッグパネルの表示 (本番は false 推奨)
-
+  device_id: 0
+  fps: 60
+  height: 720
+  width: 960
+face_detection:
+  required_frames: 15
 face_guide:
-  required_duration: 1.0           # 認証に必要な継続時間（秒）
-  guide_box_ratio: 0.6             # 実際の判定用ガイド枠の比率 (従来より拡大して遊びを作る)
-  visual_box_ratio: 0.4            # 画面表示用ガイド枠の比率 (視覚的に誘導するため小さく設定)
   colors:
-    waiting: "#FFFFFF"             # 待機中（白）
-    detecting: "#FFD700"           # 認識中（黄色）
-    confirmed: "#00FF00"           # 完了（緑）
-
-vision:
-  model_type: "yolov8_pose"
-  model_path: "resources/model/yolov8n-pose.pt" # 自動ダウンロードされます
-  min_detection_confidence: 0.5
-  use_async: true
-  inference_interval: 0.03
-  debug_overlay: false
-
+    confirmed: '#00FF00'
+    detecting: '#FFD700'
+    waiting: '#FFFFFF'
+  guide_box_ratio: 0.6
+  required_duration: 1.0
+  visual_box_ratio: 0.4
 gesture:
-  required_frames: 8
   confidence_threshold: 0.5
-  free_class_name: "free"
-
+  free_class_name: free
+  required_frames: 8
+language: JP
+logging:
+  level: INFO
+position:
+  free_threshold: 5
+  left_threshold: 0.333
+  required_consecutive: 5
+  right_threshold: 0.667
 safety:
   head_zone_ratio: 0.1
-  min_person_area: 0.01
   max_persons: 2
-
-position:
-  required_consecutive: 5    # ジェスチャー確定に必要な連続フレーム数
-  free_threshold: 5          # freeと判定するまでの未検出フレーム数
-  left_threshold: 0.333
-  right_threshold: 0.667
-
+  min_person_area: 0.01
 security:
-  pin_salt: "CHANGE_THIS_IN_PRODUCTION" # PINハッシュ用ソルト
-  max_amount: 9999999                   # 取引金額上限
-  max_pin_trials: 3                     # PIN試行回数上限
-
-logging:
-  level: "INFO"                    # ログレベル (DEBUG, INFO, WARNING, ERROR)
+  max_amount: 9999999
+  max_pin_trials: 3
+  pin_salt: CHANGE_THIS_IN_PRODUCTION
+timing:
+  exit_delay: 4000
+  idle_timeout: 10
+  main_loop_interval: 33
+ui:
+  debug_mode: false
+  title: AI-based Touchless Machine (ATM)
+  window_height: 768
+  window_width: 1024
+vision:
+  debug_overlay: false
+  inference_interval: 0.03
+  min_detection_confidence: 0.5
+  model_path: resources/model/yolov8n-pose.pt
+  model_type: yolov8_pose
+  use_async: true

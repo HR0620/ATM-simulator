@@ -1,0 +1,13 @@
+{
+    "languages": [
+      { "code": "JP", "display_name": "日本語", "enabled": true },
+      { "code": "KR", "display_name": "한국어", "enabled": true },
+      { "code": "ZH_CN", "display_name": "简体中文", "enabled": true },
+      { "code": "ZH_TW", "display_name": "繁體中文", "enabled": true },
+      { "code": "EN", "display_name": "English", "enabled": true, "is_default": true },
+      { "code": "ES", "display_name": "Español", "enabled": true },
+      { "code": "FR", "display_name": "Français", "enabled": true },
+      { "code": "IT", "display_name": "Italiano", "enabled": true }
+    ]
+  }
+  

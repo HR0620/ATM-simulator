@@ -1,0 +1,84 @@
+{
+    "ui": {
+      "language": "語言",
+      "esc_exit": "ESC: 結束",
+      "select_language": "選擇語言",
+      "thank_you": "謝謝您的使用",
+      "ondokusan": "語音導引：Ondokusan (ondoku3.com)",
+      "main_menu": "主選單"
+    },
+    "btn": {
+      "next": "下一步",
+      "back": "返回",
+      "yes": "是",
+      "no": "否",
+      "resume": "繼續操作",
+      "transfer": "轉帳",
+      "withdraw": "提款",
+      "create_account": "開設帳戶"
+    },
+    "input": {
+      "pin": {
+        "default": "請輸入密碼",
+        "first": "請輸入欲設定的4位數密碼",
+        "confirm": "請再次輸入密碼以確認"
+      },
+      "name": "請輸入您的姓名",
+      "amount": {
+        "default": "請輸入金額",
+        "balance": "請輸入金額\n目前儲蓄餘額：{:,}日圓",
+        "transfer": "請輸入轉帳金額"
+      },
+      "account": {
+        "self": "請輸入帳號",
+        "target": "請輸入轉帳目標帳號"
+      }
+    },
+    "error": {
+      "general": "發生錯誤。",
+      "invalid_amount": "金額無效。",
+      "insufficient_balance": "餘額不足。",
+      "account": {
+        "invalid": "輸入的帳號無法使用。",
+        "frozen": "此帳戶目前無法使用。"
+      },
+      "pin": {
+        "safety": "此密碼安全性不足，請更換其他號碼。",
+        "mismatch": "密碼不一致，請從頭開始。",
+        "mismatch_retry": "密碼不一致，請重新輸入。",
+        "incorrect": "密碼不正確。\n（還可嘗試 {} 次）",
+        "locked": "密碼錯誤次數已達上限，\n此帳戶暫時無法使用。"
+      }
+    },
+    "confirm": {
+      "title": "確認輸入內容",
+      "transfer": "收款方：{}\n轉帳金額：{:,}日圓\n\n確定嗎？",
+      "withdraw": "提款金額：{:,}日圓\n\n確定嗎？",
+      "create_account": "姓名：{}\n\n確認以此內容開設帳戶嗎？"
+    },
+    "guidance": {
+      "action": "點擊或使用手勢選擇",
+      "select_action": "請選擇「下一步」或「返回」",
+      "confirm_choice": "請選擇「是」或「否」",
+      "check_input": "請確認輸入內容",
+      "empty": {
+        "pin": "請輸入密碼",
+        "account": "請輸入6位數帳號",
+        "name": "請輸入姓名",
+        "amount": "請輸入金額"
+      }
+    },
+    "msg": {
+      "welcome": "歡迎光臨",
+      "complete": "交易已完成。",
+      "absent_warning": "檢測到用戶已離開。\n是否繼續操作？",
+      "return_menu_countdown": "{}秒後返回主選單",
+      "account_created": "帳戶已開設。\n\n帳號：{}\n\n",
+      "withdraw_complete": "提款已完成。\n提款後餘額：{:,}日圓",
+      "face": {
+        "align": "請將臉部對準框框",
+        "waiting": "請將臉部對準框框",
+        "detecting": "認證中..."
+      }
+    }
+  }
