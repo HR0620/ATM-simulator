@@ -32,6 +32,8 @@ class SessionSupervisor:
         self.ema_alpha = 0.05
         self.det_history = []
         self.last_trigger_gesture = None
+        self.last_activity_time = time.time()
+        self.idle_timeout = 10.0  # 10 seconds per user request
 
     def update_gestures(self, tracker_result):
         """Stable gesture detection from tracker results."""
@@ -112,6 +114,23 @@ class SessionSupervisor:
             from src.core.states import UserAbsentWarningState
             return UserAbsentWarningState
         return None
+
+    def check_inactivity(self):
+        """Checks for 10s inactivity and triggers guidance if needed."""
+        # Only trigger if we are not in an ignore state
+        current_state = self.state_machine.current_state_name
+        ignore_states = ["FaceAlignmentState", "UserAbsentWarningState", "WelcomeState", "ResultState"]
+        if current_state in ignore_states:
+            return False
+
+        if time.time() - self.last_activity_time > self.idle_timeout:
+            self.reset_activity()  # Reset after triggering to avoid spamming every frame
+            return True
+        return False
+
+    def reset_activity(self):
+        """Resets the inactivity timer."""
+        self.last_activity_time = time.time()
 
     def change_state(self, next_state_cls):
         """Transitions state and resets validator."""

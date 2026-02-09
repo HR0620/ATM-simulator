@@ -18,7 +18,9 @@
       "withdraw": "取款",
       "create_account": "开设账户",
       "confirm": "确定",
-      "correct": "更正"
+      "correct": "更正",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {

@@ -139,11 +139,11 @@ class ATMController:
         self.audio.play_se(key)
 
     # Wrapper aliases for compatibility (can be removed later if states are fully updated)
-    def play_sound(self, key):
-        self.audio.play(key)
-
     def play_button_se(self):
-        self.audio.play_se("button")  # or touch-button
+        self.audio.play_se("button")
+
+    def play_push_button_se(self):
+        self.audio.play_se("push-button")
 
     def play_cancel_se(self):
         self.audio.play_se("cancel")
@@ -156,6 +156,9 @@ class ATMController:
 
     def play_beep_se(self):
         self.audio.play_se("beep")
+
+    def play_retry_pin_voice(self):
+        self.audio.play_voice("retry-pin")
 
     def play_back_se(self):
         self.audio.play_se("back")
@@ -204,9 +207,13 @@ class ATMController:
 
             # Gesture Analysis
             gesture, prediction = self.session.update_gestures(tracker_result)
+            if gesture:
+                self.session.reset_activity()
 
             # 3. Input logic
             key_event = self.last_key_event
+            if key_event:
+                self.session.reset_activity()
             self.last_key_event = None
 
             # 4. State Update
@@ -216,6 +223,18 @@ class ATMController:
                 "progress": tracker_result["progress"],
                 "is_locked": self.session.gesture_validator.is_locked(),
             }
+            # The following 'aliases' block was incorrectly placed in the original instruction.
+            # It is not part of the ATMController class in the provided context.
+            # If it was intended to be a class member or part of a method, its placement needs clarification.
+            # For now, it's removed as it causes a syntax error and doesn't fit the current structure.
+            # aliases = {
+            #   "push-enter": "push-button",
+            #   "cancel": "cancel",
+            #   "beep": "beep",
+            #   "back": "back",
+            #   "card-insert": "card-insert",
+            #   "cash-count": "cash-count",
+            # }
 
             self.session.update_state(
                 frame,
@@ -225,6 +244,23 @@ class ATMController:
                 tracker_result["position"],
                 debug_info
             )
+
+            # 5. Inactivity Check
+            if self.session.check_inactivity():
+                # Re-trigger current state's prompt/guidance
+                active_state = self.state_machine.modal_stack[-1] if self.state_machine.modal_stack else self.state_machine.current_state
+                if active_state:
+                    # Repeat voice guidance
+                    from src.core.audio_policy import AudioPolicy
+                    target_key = AudioPolicy.get_audio_key(active_state, self.shared_context)
+                    if target_key:
+                        self.audio.play_voice(target_key)
+
+                    # Play touch-button.mp3 as requested (as a prompt sound)
+                    self.audio.play_se("touch-button")
+
+                    # Signal UI to refresh guidance if needed (though UI usually clears on timer)
+                    # For now, just repeating the voice is the main requirement.
 
             # Next Frame
             self.root.after(33, self.update_loop)

@@ -18,7 +18,9 @@
       "withdraw": "Retirada",
       "create_account": "Crear cuenta",
       "confirm": "Confirmar",
-      "correct": "Corregir"
+      "correct": "Corregir",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {

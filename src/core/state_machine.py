@@ -5,6 +5,13 @@ class State:
 
     def __init__(self, controller):
         self.controller = controller
+        # 便利のためのエイリアス
+        self.session = controller.session
+        self.state_machine = controller.state_machine
+        self.audio = controller.audio
+        self.shared_context = controller.shared_context
+        # 画面見出し用のキー (デフォルト)
+        self._header_key = "ui.main_menu"
 
     def on_enter(self, prev_state=None):
         """状態に入った時の処理（UI初期化、音声再生など）"""

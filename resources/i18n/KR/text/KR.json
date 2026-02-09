@@ -18,7 +18,9 @@
       "withdraw": "출금",
       "create_account": "계좌 개설",
       "confirm": "확정",
-      "correct": "정정"
+      "correct": "정정",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {

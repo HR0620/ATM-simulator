@@ -18,7 +18,9 @@
       "withdraw": "Withdrawal",
       "create_account": "Open Account",
       "confirm": "Confirm",
-      "correct": "Correction"
+      "correct": "Correction",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {
@@ -103,4 +105,4 @@
       "model": "AI model file not found. Please check the resources/model folder.",
       "generic": "An unknown error occurred. Please check the logs or contact the developer."
     }
-  }
+}

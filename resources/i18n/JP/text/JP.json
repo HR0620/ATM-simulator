@@ -18,7 +18,9 @@
       "withdraw": "お引き出し",
       "create_account": "口座作成",
       "confirm": "確定",
-      "correct": "訂正"
+      "correct": "訂正",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {

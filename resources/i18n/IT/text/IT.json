@@ -18,7 +18,9 @@
       "withdraw": "Prelievo",
       "create_account": "Apri conto",
       "confirm": "Conferma",
-      "correct": "Correggi"
+      "correct": "Correggi",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {

@@ -18,7 +18,9 @@
       "withdraw": "提款",
       "create_account": "開設帳戶",
       "confirm": "確定",
-      "correct": "更正"
+      "correct": "訂正",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
     },
     "input": {
       "pin": {
