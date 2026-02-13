@@ -2,7 +2,7 @@
     "ui": {
       "language": "Language",
       "esc_exit": "ESC: 退出",
-      "select_language": "Select Language",
+      "select_language": "请选择语言",
       "thank_you": "感谢您的使用",
       "ondokusan": "语音提示：音読さん (ondoku3.com)",
       "main_menu": "主菜单",
@@ -51,7 +51,7 @@
         "safety": "该密码无法设置。请输入其他数字。",
         "mismatch": "输入的密码不一致。请重新开始。",
         "mismatch_retry": "密码不一致。请再次输入",
-        "incorrect": "密码不正确。\n（还可以输入 {} 次）",
+        "incorrect": "密码不正确。\n（还可以输入 {remaining} 次）",
         "locked": "由于密码错误次数超过上限，\n该账户已无法使用。"
       }
     },
@@ -104,5 +104,8 @@
       "dll": "缺少必要的系统组件(DLL)。请安装MSVC可再发行组件包。",
       "model": "找不到AI模型文件。请检查 resources/model 文件夹。",
       "generic": "发生未知错误。请检查日志或联系开发人员。"
+    },
+    "unit": {
+      "currency": "日元"
     }
   }

@@ -31,12 +31,18 @@ class BaseInputState(State):
     DIGIT_ONLY = True
 
     def on_enter(self, prev_state=None):
+        # Rule 1: Explicit Initialization (Always overwrite previous state)
         self.input_buffer = InputBuffer(
             max_length=self.INPUT_MAX,
             is_pin=False,
             digit_only=self.DIGIT_ONLY
         )
+        self._message = ""
+        self._message_params = {}
         self.controller.ui.set_click_callback(self._on_click)
+
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
 
     def on_exit(self):
         self.controller.ui.set_click_callback(None)
@@ -114,7 +120,7 @@ class BaseInputState(State):
         if self.DIGIT_ONLY:
             if char.isdigit():
                 if self.input_buffer.add_char(char):
-                    self.controller.play_push_button_se()  # 文字入力時は push-button.mp3
+                    self.controller.play_push_button_se()  # SE
                 else:
                     self.controller.play_beep_se()
                 return
@@ -122,7 +128,7 @@ class BaseInputState(State):
             # 汎用テキスト入力 (名前など)
             if len(char) == 1 and char.isprintable():
                 if self.input_buffer.add_char(char):
-                    self.controller.play_push_button_se()  # 文字入力時は push-button.mp3
+                    self.controller.play_push_button_se()  # SE
                 else:
                     self.controller.play_beep_se()
                 return
@@ -195,6 +201,10 @@ class MenuState(State):
     IDLE_TIMEOUT_SEC = 10  # アイドル検知時間
 
     def on_enter(self, prev_state=None):
+        # Rule 1: Explicit Initialization (Always overwrite)
+        self._message = ""
+        self._message_params = {}
+
         # Audio handled by Policy
         self.controller.shared_context.reset()
         self.controller.ui.set_click_callback(self._on_click)
@@ -202,6 +212,9 @@ class MenuState(State):
         # アイドルタイマー開始
         self._idle_timer_id = None
         self._start_idle_timer()
+
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
 
     def on_exit(self):
         self.controller.ui.set_click_callback(None)
@@ -280,6 +293,10 @@ class ResultState(State):
     """結果/エラー画面"""
 
     def on_enter(self, prev_state=None):
+        # Rule 1: Explicit Initialization
+        self._message = ""
+        self._message_params = {}
+
         is_account_created = self.controller.shared_context.is_account_created
         is_error = self.controller.shared_context.is_error
         # msg is now a key usually
@@ -295,6 +312,9 @@ class ResultState(State):
         self.start_time = time.time()
         self.countdown = 10 if is_account_created else 5
         self._start_countdown()
+
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
 
     def on_exit(self):
         pass
@@ -315,7 +335,7 @@ class ResultState(State):
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
-        msg = self.controller.shared_context.result_message or "処理が完了しました。"
+        msg = self.controller.shared_context.result_message or "msg.complete"
         is_error = self.controller.shared_context.is_error
 
         self.controller.ui.render_frame(frame, {
@@ -372,10 +392,14 @@ class GenericAmountInputState(BaseInputState):
     ALIGN_RIGHT = True
     HEADER = "btn.amount"  # or "ui.amount_input"
     MESSAGE = "input.amount"
-    UNIT = "円"  # TODO: i18n
+    UNIT = "unit.currency"
     GUIDANCE_EMPTY = "guidance.empty.amount"
 
     def on_enter(self, prev_state=None):
+        # Rule 1: Explicit Initialization
+        self._message = ""
+        self._message_params = {}
+
         self.base_mode = "menu"
         self.base_header = "main_menu"
 
@@ -387,15 +411,18 @@ class GenericAmountInputState(BaseInputState):
             elif "Transfer" in state_name:
                 self.base_mode = "transfer"
 
-        super().on_enter(prev_state)
         txn = self.controller.shared_context.transaction
         if txn is None:
             self.controller.change_state(MenuState)
             return
+
         if txn == "withdraw":
             self.MESSAGE = "input.amount.balance"
         else:
             self.MESSAGE = "input.amount.transfer"
+
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
 
     def _confirm_input(self):
         amount_str = self.input_buffer.get_value()
@@ -417,22 +444,26 @@ class ConfirmationState(State):
     """確認画面ステート"""
 
     def on_enter(self, prev_state=None):
-        # Audio by Policy
+        # Rule 1: Explicit Initialization
+        self._message = ""
+        self._message_params = {}
         self.controller.ui.set_click_callback(self._on_click)
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
 
     def on_exit(self):
         self.controller.ui.set_click_callback(None)
 
-    def _on_click(self, x, y):
-        clicked_zone = self.controller.ui.get_zone_at(x, y)
-        if clicked_zone:
-            self._handle_selection(clicked_zone)
+    def _on_click(self, zone):
+        """Unified callback: receives zone token string."""
+        if zone:
+            self._handle_selection(zone)
 
     def _handle_selection(self, zone):
-        if zone == "left":   # Yes -> PinInput
+        if zone == "left":
             self.controller.play_button_se()
             self.controller.change_state(PinInputState)
-        elif zone == "right":  # No -> Menu
+        elif zone == "right":
             self.controller.play_cancel_se()
             self.controller.change_state(MenuState)
         else:
@@ -496,22 +527,7 @@ class ConfirmationState(State):
                 "guidance.confirm_choice"
             )
 
-    def _build_message(self, txn):
-        ctx = self.controller.shared_context
-        if txn == "transfer":
-            target = ctx.get("target_account")
-            amt = ctx.get("amount")
-            return (
-                f"振込先口座 : {target}\n"
-                f"振込金額 : {amt}円\n\nよろしいですか？"
-            )
-        elif txn == "withdraw":
-            amt = ctx.get("amount")
-            return f"引き出し金額 : {amt}円\n\nよろしいですか？"
-        elif txn == "create_account":
-            name = ctx.get("name")
-            return f"お名前 : {name}\n\nこの内容で作成しますか？"
-        return ""
+    # _build_message removed: superseded by msg_key + msg_params
 
     def _execute_transaction(self):
         ctx = self.controller.shared_context
@@ -543,7 +559,7 @@ class ConfirmationState(State):
         elif txn == "create_account":
             name = ctx.account_name
             pin = ctx.pin
-            new_acct = am.create_account(name, pin, initial_balance=1000)
+            am.create_account(name, pin, initial_balance=1000)
             msg = "msg.account_created"
             is_account_created = True
 
@@ -599,6 +615,10 @@ class PinInputState(BaseInputState):
     GUIDANCE_EMPTY = "guidance.empty.pin"
 
     def on_enter(self, prev_state=None):
+        # Rule 1: Self-contained initialization (Always overwrite)
+        self._message = ""
+        self._message_params = {}
+
         txn = self.controller.shared_context.transaction
         if txn is None:
             self.controller.change_state(MenuState)
@@ -624,6 +644,9 @@ class PinInputState(BaseInputState):
         self.controller.ui.set_click_callback(self._on_click)
         self._message = self._get_message()
 
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
+
     def _get_message(self):
         txn = self.controller.shared_context.get("transaction")
         step = self.controller.shared_context.get("pin_step", 1)
@@ -643,9 +666,10 @@ class PinInputState(BaseInputState):
             "mode": "pin_input",
             "header": self.HEADER,
             "message": self._message,
+            "message_params": self._message_params,
             "input_value": self.input_buffer.get_display_value(),
             "keypad_layout": keypad,
-            "guides": {"left": "進む", "right": "戻る"},
+            "guides": {"left": "btn.next", "right": "btn.back"},
             "progress": progress,
             "current_direction": current_direction,
             "debug_info": debug_info,
@@ -724,10 +748,8 @@ class PinInputState(BaseInputState):
                 # RETRY LOGIC for AudioPolicy
                 ctx.pin_mode = "retry"
 
-                self._message = (
-                    "暗証番号が正しくありません。\n"
-                    f"（あと {info} 回入力できます）"
-                )
+                self._message = "error.pin.incorrect"
+                self._message_params = {"remaining": info}
 
                 if info <= 0:
                     self.controller.play_assert_se()
@@ -781,6 +803,14 @@ class CreateAccountNameInputState(BaseInputState):
     MESSAGE = "input.name"
     GUIDANCE_EMPTY = "guidance.empty.name"
     DIGIT_ONLY = False
+
+    def on_enter(self, prev_state=None):
+        # Rule 1: Explicit Initialization
+        self._message = ""
+        self._message_params = {}
+
+        if hasattr(super(), 'on_enter'):
+            super().on_enter(prev_state)
 
     def _on_input_complete(self, value):
         self.controller.shared_context.account_name = value
@@ -900,7 +930,12 @@ class LanguageModal(State):
             all_langs = json.load(f).get("languages", [])
 
         self.languages = [
-            {"code": item["code"], "display_name": item.get("display_name", item["code"])}
+            {
+                "code": item["code"],
+                "display_name": item.get(
+                    "display_name", item["code"]
+                ),
+            }
             for item in all_langs
             if item.get("enabled", True)
         ]
@@ -914,11 +949,10 @@ class LanguageModal(State):
         except ValueError:
             self.selected_index = 0
 
-        self.controller.play_voice("check-screen")  # Or specific language voice? Policy not defined for Modal yet.
+        self.controller.play_voice("check-screen")
         self.controller.ui.set_click_callback(self._on_click)
 
     def on_exit(self):
-        pass
         self.controller.ui.set_click_callback(None)
 
     def _move_prev(self):
@@ -956,8 +990,8 @@ class LanguageModal(State):
             "languages": self.languages,
             "selected_index": self.selected_index,
             "guides": {
-                "left": "Confirm",  # Fixed English
-                "right": "Back"    # Fixed English
+                "left": "btn.lang_confirm",
+                "right": "btn.lang_back"
             },
             "progress": progress,
             "current_direction": current_direction,

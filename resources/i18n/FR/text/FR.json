@@ -2,7 +2,7 @@
     "ui": {
       "language": "Language",
       "esc_exit": "ESC: Quitter",
-      "select_language": "Select Language",
+      "select_language": "Choisir la langue",
       "thank_you": "Merci d'avoir utilisé notre service",
       "ondokusan": "Guidage vocal: 音読さん (ondoku3.com)",
       "main_menu": "Menu Principal",
@@ -51,7 +51,7 @@
         "safety": "Ce code PIN n'est pas sécurisé. Veuillez en choisir un autre.",
         "mismatch": "Les codes PIN ne correspondent pas. Veuillez recommencer.",
         "mismatch_retry": "Les codes PIN ne correspondent pas. Veuillez réessayer",
-        "incorrect": "Code PIN incorrect.\n(Encore {} tentatives)",
+        "incorrect": "Code PIN incorrect.\n(Encore {remaining} tentatives)",
         "locked": "Compte verrouillé suite à trop de tentatives erronées.\nOpération impossible."
       }
     },
@@ -104,5 +104,8 @@
       "dll": "Composants système (DLL) manquants. Installez MSVC Redistributable.",
       "model": "Modèle AI introuvable. Vérifiez le dossier resources/model.",
       "generic": "Erreur inconnue. Vérifiez les logs ou contactez le développeur."
+    },
+    "unit": {
+      "currency": "JPY"
     }
   }

@@ -1,63 +1,104 @@
+"""
+StateMachine - ATM state transition manager.
+
+Responsibilities:
+  - Manage current state and modal stack
+  - Provide prev_state to on_enter for context propagation
+  - Restore click callbacks after modal pop (central restoration)
+  - Trigger audio policy after each update cycle
+"""
+
+
 class State:
     """
-    ATMの各状態（画面・処理ステップ）の基底クラス
+    ATM state base class.
+
+    All concrete states inherit from this class.
+    The base __init__ provides convenience aliases to core subsystems
+    so that subclasses never need to reach through controller chains.
     """
 
     def __init__(self, controller):
         self.controller = controller
-        # 便利のためのエイリアス
-        self.session = controller.session
-        self.state_machine = controller.state_machine
-        self.audio = controller.audio
-        self.shared_context = controller.shared_context
-        # 画面見出し用のキー (デフォルト)
+        # Default header key (subclasses override as needed)
         self._header_key = "ui.main_menu"
+        self._message = ""
+        self._message_params = {}
+
+    @property
+    def session(self):
+        """Lazy access to controller.session"""
+        return self.controller.session
+
+    @property
+    def state_machine(self):
+        """Lazy access to controller.state_machine"""
+        return self.controller.state_machine
+
+    @property
+    def audio(self):
+        """Lazy access to controller.audio"""
+        return self.controller.audio
+
+    @property
+    def shared_context(self):
+        """Lazy access to controller.shared_context"""
+        return self.controller.shared_context
 
     def on_enter(self, prev_state=None):
-        """状態に入った時の処理（UI初期化、音声再生など）"""
+        """Called when entering this state."""
         pass
 
     def on_exit(self):
-        """状態から出る時の処理"""
+        """Called when leaving this state."""
         pass
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
         """
-        フレームごとの更新処理
+        Per-frame update.
+
         Args:
-            frame: カメラ映像（反転済み）
-            gesture: 確定したジェスチャー (None or "left", "center", "right")
-            key_event: キーボード入力イベント (あれば)
-            progress: ジェスチャー認識進捗 (0.0〜1.0)
-            current_direction: 現在認識中の方向
-            debug_info: デバッグ情報 (AI予測など)
+            frame: Camera frame (already flipped).
+            gesture: Confirmed gesture (None, "left", "center", "right").
+            key_event: Keyboard event if any.
+            progress: Gesture recognition progress (0.0-1.0).
+            current_direction: Currently recognized direction.
+            debug_info: Debug info dict (AI predictions, etc.).
         """
         pass
 
 
 class StateMachine:
     """
-    状態遷移を管理するクラス
+    Manages state transitions and modal stack.
+
+    Design invariants:
+      - Only one current_state at a time.
+      - modal_stack is LIFO; topmost modal receives updates.
+      - push_modal passes prev_state for context propagation.
+      - pop_modal restores click callback centrally (Bug #4 fix).
     """
 
     def __init__(self, controller, initial_state_cls):
         self.controller = controller
-        # メイン状態
         self.current_state = initial_state_cls(self.controller)
         self.current_state_name = initial_state_cls.__name__
         self.last_audio_key = None
-
-        # モーダルスタック
         self.modal_stack = []
 
     def start(self):
-        """最初の状態を開始"""
+        """Start the initial state."""
         self.current_state.on_enter()
 
     def change_state(self, next_state_cls):
-        """状態を遷移させる (モーダルはクリアされる)"""
-        # モーダルがあればすべて閉じる
+        """
+        Transition to a new state.
+
+        All modals are closed first. The previous state is passed
+        to the new state's on_enter for context propagation.
+        """
+        # Close all modals first
         while self.modal_stack:
             self.pop_modal()
 
@@ -68,38 +109,75 @@ class StateMachine:
         self.current_state = next_state_cls(self.controller)
         self.current_state_name = next_state_cls.__name__
 
-        print(f"State Transition: {prev_state.__class__.__name__} -> {self.current_state_name}")
+        print(
+            f"State Transition: "
+            f"{prev_state.__class__.__name__} -> "
+            f"{self.current_state_name}"
+        )
         self.current_state.on_enter(prev_state=prev_state)
 
     def push_modal(self, modal_state_cls):
-        """モーダル状態をスタックに積む"""
+        """
+        Push a modal state onto the stack.
+
+        The previous active state (modal or current) is passed
+        to the modal's on_enter for context propagation (Bug #2 fix).
+        """
+        prev = (
+            self.modal_stack[-1]
+            if self.modal_stack
+            else self.current_state
+        )
         print(f"Push Modal: {modal_state_cls.__name__}")
         modal = modal_state_cls(self.controller)
         self.modal_stack.append(modal)
-        modal.on_enter()
+        modal.on_enter(prev_state=prev)
 
     def pop_modal(self):
-        """最前面のモーダルを閉じる"""
-        if self.modal_stack:
-            modal = self.modal_stack.pop()
-            print(f"Pop Modal: {modal.__class__.__name__}")
-            modal.on_exit()
+        """
+        Pop the topmost modal and restore the parent's click callback.
+
+        Central callback restoration (Bug #4 fix): after popping,
+        the now-active state's _on_click is re-bound so that the
+        parent state does not lose mouse interaction.
+        """
+        if not self.modal_stack:
+            return
+
+        modal = self.modal_stack.pop()
+        print(f"Pop Modal: {modal.__class__.__name__}")
+        modal.on_exit()
+
+        # Restore click callback for the now-active state
+        active = (
+            self.modal_stack[-1]
+            if self.modal_stack
+            else self.current_state
+        )
+        if active and hasattr(active, "_on_click"):
+            self.controller.ui.set_click_callback(active._on_click)
+        else:
+            self.controller.ui.set_click_callback(None)
 
     def update(self, frame, gesture, key_event=None, progress=0,
                current_direction=None, debug_info=None):
-        """現在の（最前面の）状態のupdateメソッドを呼ぶ"""
+        """
+        Dispatch update to the topmost active state,
+        then run audio policy check.
+        """
+        active_state = (
+            self.modal_stack[-1]
+            if self.modal_stack
+            else self.current_state
+        )
 
-        # 1. 判定対象の状態を決定 (モーダルがあればそちらが優先)
-        active_state = self.modal_stack[-1] if self.modal_stack else self.current_state
-
-        # 2. State Update
         if active_state:
             active_state.update(
                 frame, gesture, key_event, progress,
                 current_direction, debug_info
             )
 
-        # 3. Audio Policy Check
+        # Audio policy (edge-triggered by key change)
         from src.core.audio_policy import AudioPolicy
 
         target_key = AudioPolicy.get_audio_key(
@@ -109,7 +187,10 @@ class StateMachine:
 
         if target_key:
             if target_key != self.last_audio_key:
-                print(f"AudioPolicy Trigger: {self.last_audio_key} -> {target_key}")
+                print(
+                    f"AudioPolicy Trigger: "
+                    f"{self.last_audio_key} -> {target_key}"
+                )
                 self.controller.audio.play_voice(target_key)
                 self.last_audio_key = target_key
         else:

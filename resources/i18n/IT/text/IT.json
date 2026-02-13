@@ -2,7 +2,7 @@
     "ui": {
       "language": "Language",
       "esc_exit": "ESC: Esci",
-      "select_language": "Select Language",
+      "select_language": "Seleziona lingua",
       "thank_you": "Grazie per aver utilizzato i nostri servizi",
       "ondokusan": "Guida vocale: 音読さん (ondoku3.com)",
       "main_menu": "Menu Principale",
@@ -51,7 +51,7 @@
         "safety": "PIN non sicuro. Inserire un numero diverso.",
         "mismatch": "I codici PIN non corrispondono. Ricominciare da capo.",
         "mismatch_retry": "I codici PIN non corrispondono. Riprovare",
-        "incorrect": "PIN errato.\n(Rimangono {} tentativi)",
+        "incorrect": "PIN errato.\n(Rimangono {remaining} tentativi)",
         "locked": "Conto bloccato per troppi tentativi errati.\nOperazione non consentita."
       }
     },
@@ -104,5 +104,8 @@
       "dll": "Componenti di sistema (DLL) mancanti. Installare MSVC Redistributable.",
       "model": "File del modello AI non trovato. Controllare la cartella resources/model.",
       "generic": "Errore sconosciuto. Controllare i log o contattare lo sviluppatore."
+    },
+    "unit": {
+      "currency": "JPY"
     }
   }

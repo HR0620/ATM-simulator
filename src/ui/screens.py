@@ -62,6 +62,7 @@ class ATMUI:
         self._guidance_is_error = False
 
         # レイアウト計算
+        self.last_input_bottom = 0
         self._calculate_layout()
 
         self._state_data = {}
@@ -650,7 +651,9 @@ class ATMUI:
 
     def _draw_input_overlay(self):
         """入力画面 (Unified)"""
-        label = self._state_data.get("message", "")  # Use message as label
+        msg_key = self._state_data.get("message", "")
+        msg_params = self._state_data.get("message_params", {})
+        label = self._resolve_text(msg_key, **msg_params)
         input_text = self._state_data.get("input_value", "")
         char_count = self._state_data.get("input_max", 6)
         unit = self._state_data.get("input_unit", "")
@@ -660,43 +663,77 @@ class ATMUI:
         self._draw_guides()
 
     def _draw_pin_input_overlay(self):
-        """暗証番号入力画面 (Unified)"""
-        label = self._state_data.get("message", "")
+        """暗証番号入力画面 (Unified - Ratio Based Layout)"""
+        msg_key = self._state_data.get("message", "")
+        msg_params = self._state_data.get("message_params", {})
+        label = self._resolve_text(msg_key, **msg_params)
         input_text = self._state_data.get("input_value", "")
         keypad_layout = self._state_data.get("keypad_layout", [])
 
-        self._draw_input_visual(label, input_text, 4, True)
+        # Rule 3: Container Ratios
+        upper_cy = int(self.height * 0.35)
+        lower_cy = int(self.height * 0.70)
 
-        # キーパッドグリッド
+        # Upper Container: Input Visual
+        self._draw_input_visual(label, input_text, 4, True, override_cy=upper_cy)
+
+        # Lower Container: Keypad Grid
         if keypad_layout:
-            gx = cx - 110
-            gy = cy - 70
-            cw, ch = 75, 55
+            cx = self.main_width // 2
+
+            # Rule 3: Base sizes relative to screen
+            cw = min(85, int(self.main_width * 0.12))
+            ch = min(65, int(self.height * 0.1))
+            padding = 5
+
+            grid_w = (cw + padding) * 3 - padding
+            grid_h = (ch + padding) * 4 - padding
+
+            gx = cx - grid_w // 2
+            gy = lower_cy - grid_h // 2
+
+            # Rule 4: Keep-Out Rule (Collision Guard)
+            # input_bottom + min_padding < keypad_top
+            min_padding = int(self.height * 0.05)
+            if hasattr(self, "last_input_bottom"):
+                if self.last_input_bottom + min_padding > gy:
+                    # Implement Shrink Strategy (Rule 3 Fallback)
+                    # For now, shift keypad down slightly if possible, or scale down
+                    shift = (self.last_input_bottom + min_padding) - gy
+                    gy += shift
+                    # Ensure we don't go off header/footer (omitted for brevity but implied)
 
             for row_idx, row in enumerate(keypad_layout):
                 for col_idx, item in enumerate(row):
                     if item is None:
                         continue
 
-                    kx = gx + col_idx * cw
-                    ky = gy + row_idx * ch
+                    kx = gx + col_idx * (cw + padding)
+                    ky = gy + row_idx * (ch + padding)
                     key = item.get("key", "")
                     num = item.get("num", "")
 
+                    # Draw key background
                     self.canvas.create_rectangle(
-                        kx, ky, kx + cw - 5, ky + ch - 5,
+                        kx, ky, kx + cw, ky + ch,
                         fill="#ffffff", outline="#444444",
                         width=2, tags="overlay"
                     )
+
+                    # Number fits keypad cell
+                    num_font_size = int(ch * 0.45)
                     self.canvas.create_text(
-                        kx + (cw - 5) // 2, ky + 18,
+                        kx + cw // 2, ky + ch // 3,
                         text=num, fill="#333333",
-                        font=("Arial", 20, "bold"), tags="overlay"
+                        font=("Arial", num_font_size, "bold"), tags="overlay"
                     )
+
+                    # Key ID fits keypad cell
+                    id_font_size = max(8, int(ch * 0.15))
                     self.canvas.create_text(
-                        kx + (cw - 5) // 2, ky + ch - 12,
+                        kx + cw // 2, ky + (ch * 4) // 5,
                         text=f"[{key.upper()}]", fill="#888888",
-                        font=("Arial", 9), tags="overlay"
+                        font=("Arial", id_font_size), tags="overlay"
                     )
 
         self._draw_guides()
@@ -877,10 +914,11 @@ class ATMUI:
 
     def _draw_language_modal_overlay(self):
         """ATM風言語選択モーダル (背景保持/グリッド/分離ボタン)"""
-        # 背景を暗くする (stipple="gray25"を使用)
+        # 背景を暗くする (パフォーマンスのためstippleは控えめに、あるいはソリッドで)
+        # 以前のパフォーマンス修正に基づき、stippleを避けつつモーダル感を出す
         self.canvas.create_rectangle(
             0, 0, self.main_width, self.height,
-            fill="black", stipple="gray25", tags="overlay"
+            fill="#000000", stipple="gray25", tags="overlay"
         )
 
         languages = self._state_data.get("languages", [])
@@ -889,24 +927,38 @@ class ATMUI:
         cx = self.main_width // 2
         cy = self.height // 2
 
-        # 1. グリッド設定 (4列固定)
+        # 1. モーダル中央ボックス
+        box_w, box_h = 760, 480
+        self.canvas.create_rectangle(
+            cx - box_w // 2, cy - box_h // 2,
+            cx + box_w // 2, cy + box_h // 2,
+            fill="#f0f0f0", outline="#333333", width=2, tags="overlay"
+        )
+
+        # 2. ヘッダータイトル (Localized)
+        title_text = self._resolve_text("ui.select_language")
+        self.canvas.create_text(
+            cx, cy - box_h // 2 + 40,
+            text=title_text, fill="#004080",
+            font=("Meiryo UI", 24, "bold"), tags="overlay"
+        )
+
+        # 3. グリッド設定 (4列固定)
         cols = 4
         rows = (len(languages) + cols - 1) // cols
 
-        # ボタンサイズ
-        btn_w = 180
-        btn_h = 100
-        gap = 20
+        btn_w, btn_h = 160, 80
+        gap = 15
 
         grid_w = cols * btn_w + (cols - 1) * gap
         grid_h = rows * btn_h + (rows - 1) * gap
 
         start_x = cx - grid_w // 2
-        start_y = cy - grid_h // 2 - 40  # 少し上に寄せる
+        start_y = cy - grid_h // 2 + 20
 
         modal_hit_areas = []
 
-        # 2. 言語ボタンの描画
+        # 4. 言語ボタンの描画
         for idx, lang in enumerate(languages):
             r = idx // cols
             c = idx % cols
@@ -919,33 +971,29 @@ class ATMUI:
             is_selected = (idx == selected_index)
             is_clicked = self._clicked_zone == (f"lang_select:{idx}", "modal")
 
-            # 背景色
             if is_selected:
                 bg = "#0055aa"  # 選択中: 濃い青
                 fg = "white"
-                border = Colors.WHITE
+                border = "#ffffff"
                 width = 4
             else:
-                bg = "#f8f9fa"  # 通常: 白系
+                bg = "#ffffff"  # 通常: 白
                 fg = "#333333"
                 border = "#cccccc"
                 if is_clicked:
-                    bg = "#e0e0e0"
-                width = 2
+                    bg = "#dddddd"
+                width = 1
 
-            # ボタン枠
             self.canvas.create_rectangle(
                 x1, y1, x2, y2,
                 fill=bg, outline=border, width=width, tags="overlay"
             )
 
-            # 言語名
             display_name = lang.get("display_name", lang["code"])
-            # 視覚のみで理解できるよう、大きめのフォント
             self.canvas.create_text(
                 (x1 + x2) // 2, (y1 + y2) // 2,
                 text=display_name, fill=fg,
-                font=("Meiryo UI", 16, "bold"), tags="overlay"
+                font=("Meiryo UI", 14, "bold"), tags="overlay"
             )
 
             modal_hit_areas.append({
@@ -953,41 +1001,32 @@ class ATMUI:
                 "x1": x1, "y1": y1, "x2": x2, "y2": y2
             })
 
-        # 3. 確定 / 戻る ボタン (ATM標準のガイド位置に配置、英語固定)
-        # ガイド領域を利用
+        # 5. ガイドボタン (確定/戻る) - 視覚的に分かりやすく
         gz_l = self.guide_zones["left"]
         gz_r = self.guide_zones["right"]
 
         # Confirm (左)
         is_conf_clicked = self._clicked_zone == ("lang_confirm", "modal")
-        self.canvas.create_rectangle(
-            gz_l["x1"], gz_l["y1"], gz_l["x2"], gz_l["y2"],
-            fill="#005bb5" if not is_conf_clicked else "#003d7a",
-            outline=Colors.WHITE, width=2, tags="overlay"
-        )
-        self.canvas.create_text(
-            (gz_l["x1"] + gz_l["x2"]) // 2, (gz_l["y1"] + gz_l["y2"]) // 2,
-            text=self._resolve_text("btn.lang_confirm"), fill="white", font=("Arial", 14, "bold"), tags="overlay"
+        self._draw_action_button(
+            gz_l["x1"], gz_l["y1"], self._resolve_text("btn.lang_confirm"),
+            "#005bb5", 1 if is_conf_clicked else 0
         )
         modal_hit_areas.append({
             "action": "lang_confirm",
-            "x1": gz_l["x1"], "y1": gz_l["y1"], "x2": gz_l["x2"], "y2": gz_l["y2"]
+            "x1": gz_l["x1"], "y1": gz_l["y1"],
+            "x2": gz_l["x1"] + 150, "y2": gz_l["y1"] + 55
         })
 
         # Back (右)
         is_back_clicked = self._clicked_zone == ("lang_back", "modal")
-        self.canvas.create_rectangle(
-            gz_r["x1"], gz_r["y1"], gz_r["x2"], gz_r["y2"],
-            fill="#e67e22" if not is_back_clicked else "#b86b1d",
-            outline=Colors.WHITE, width=2, tags="overlay"
-        )
-        self.canvas.create_text(
-            (gz_r["x1"] + gz_r["x2"]) // 2, (gz_r["y1"] + gz_r["y2"]) // 2,
-            text=self._resolve_text("btn.lang_back"), fill="white", font=("Arial", 14, "bold"), tags="overlay"
+        self._draw_action_button(
+            gz_r["x1"] - 30, gz_r["y1"], self._resolve_text("btn.lang_back"),
+            "#e67e22", 1 if is_back_clicked else 0
         )
         modal_hit_areas.append({
             "action": "lang_back",
-            "x1": gz_r["x1"], "y1": gz_r["y1"], "x2": gz_r["x2"], "y2": gz_r["y2"]
+            "x1": gz_r["x1"] - 30, "y1": gz_r["y1"],
+            "x2": gz_r["x1"] + 120, "y2": gz_r["y1"] + 55
         })
 
         self._state_data["modal_hit_areas"] = modal_hit_areas
@@ -1209,79 +1248,90 @@ class ATMUI:
             font=(font_family, size, "bold"), tags="overlay", **kwargs
         )
 
-    def _draw_input_visual(self, label, input_text, char_count=4, is_password=True, unit="", align_right=False):
-        """入力可視化パーツ (動的サイズ計算・ラベル配置改善)"""
+    def _draw_input_visual(self, label, input_text, char_count=4, is_password=True, unit="", align_right=False, override_cy=None):
+        """入力可視化パーツ (相対レイアウト計算・動的リサイズ)"""
         cx = self.main_width // 2
-        cy = self.height // 2
+        # Rule 3: Math-based centering
+        cy = override_cy if override_cy is not None else (self.height // 2)
 
-        # 画面幅の 80% まで許容
+        # 1. レイアウト定数 (相対計算の基準)
         max_total_width = self.main_width * 0.8
-
-        # 1文字あたりの幅を少し広めに
-        box_size = min(70, int(max_total_width / char_count) - 15)
-        padding = 12
+        # box_size は文字数に応じて可変だが最大値を制限
+        box_size = min(70, int(max_total_width / (char_count + (char_count - 1) * 0.2)))
+        padding = int(box_size * 0.2)
         total_width = (box_size + padding) * char_count - padding
 
-        start_x = cx - total_width // 2
-        # Y位置を調整 (ラベルとの重なりを防ぐ)
-        start_y = cy - box_size // 2 + 30
+        # 垂直位置の計算 (全体を中央付近に配置)
+        # ラベル(約30px) + 余白(box_size*0.4) + ボックス(box_size)
+        label_box_gap = int(box_size * 0.5)
+        total_group_h = 30 + label_box_gap + box_size
 
-        # 背景ボックス (ユーザー要望: 視認性向上のための白半透明)
-        box_bg_w = total_width + 60
-        box_bg_h = box_size + 100
+        # グループ全体の開始Y (ラベル位置)
+        label_y = cy - (total_group_h // 2) + 15
+        start_y = label_y + label_box_gap + 15
+        start_x = cx - total_width // 2
+
+        # 2. 背景ボックス (Relative padding)
+        bg_padx = int(box_size * 0.5)
+        bg_pady = int(box_size * 0.6)
+        box_bg_w = total_width + bg_padx * 2
+
+        # Rule 4: Track bottom for Keep-Out math
+        self.last_input_bottom = start_y + box_size + bg_pady // 2
+
         self.canvas.create_rectangle(
-            cx - box_bg_w // 2, cy - 50, cx + box_bg_w // 2, cy + box_bg_h - 50,
+            cx - box_bg_w // 2, label_y - bg_pady,
+            cx + box_bg_w // 2, self.last_input_bottom,
             fill="white", stipple="gray50", outline="#cccccc", width=1, tags="overlay"
         )
 
+        # 3. 入力ボックス描画
         input_len = len(input_text)
         for i in range(char_count):
-            x = start_x + i * (box_size + padding)
+            bx = start_x + i * (box_size + padding)
             val = ""
             bg = "white"
 
-            # 描画文字の取得
             if align_right:
                 val_idx = i - (char_count - input_len)
                 if 0 <= val_idx < input_len:
                     val = input_text[val_idx] if not is_password else "●"
                 if i == char_count - 1 and input_len < char_count:
-                    bg = "#f0f9ff"  # キャレット位置
+                    bg = "#f0f9ff"
             else:
                 if i < input_len:
                     val = input_text[i] if not is_password else "●"
                 elif i == input_len:
                     bg = "#f0f9ff"
 
-            # 枠
             self.canvas.create_rectangle(
-                x, start_y, x + box_size, start_y + box_size,
+                bx, start_y, bx + box_size, start_y + box_size,
                 fill=bg, outline="#666666", width=2, tags="overlay"
             )
 
-            # 文字
             if val:
+                # 文字サイズもボックスに比例
+                font_size = int(box_size * 0.5)
                 self.canvas.create_text(
-                    x + box_size // 2, start_y + box_size // 2,
-                    text=val, fill="black", font=("Arial", 28, "bold"),
+                    bx + box_size // 2, start_y + box_size // 2,
+                    text=val, fill="black", font=("Arial", font_size, "bold"),
                     tags="overlay"
                 )
 
-        # ラベル (見出し)
+        # 4. ラベル (見出し) - Dynamic Fitting
         if label:
             text = self._resolve_text(label)
-            # Y位置を start_y より上に十分離す
-            self.canvas.create_text(
-                cx, cy - 30, text=text, fill="#333333",
-                font=("Meiryo UI", 18, "bold"), tags="overlay", width=max_total_width
+            # フォントサイズを16に下げて視覚的な重さを軽減 (max 16)
+            self._draw_text_fit(
+                cx, label_y, text, "Meiryo UI", 16, max_total_width - 40, "#333333"
             )
 
-        # 単位
+        # 5. 単位 (Relative to boxes)
         if unit:
             u_text = self._resolve_text(unit)
             self.canvas.create_text(
-                cx + total_width // 2 + 30, start_y + box_size // 2,
-                text=u_text, fill="#333333", font=("Meiryo UI", 20, "bold"),
+                cx + total_width // 2 + 20, start_y + box_size // 2,
+                text=u_text, fill="#333333", font=("Meiryo UI", 16, "bold"),
                 anchor="w", tags="overlay"
             )
 

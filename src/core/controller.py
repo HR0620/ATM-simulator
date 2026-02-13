@@ -191,6 +191,13 @@ class ATMController:
                 self.root.after(33, self.update_loop)
                 return
 
+            # Reset recoverable retry count on successful frame start
+            if not hasattr(self, "_recoverable_retry_count"):
+                self._recoverable_retry_count = 0
+
+            # Note: We consider a "successful start" the fact that we got here.
+            # If the frame processing itself fails, it will be caught in the except block.
+
             # 1. Vision Logic
             frame = self.vision.get_frame()
             if frame is None:
@@ -223,11 +230,6 @@ class ATMController:
                 "progress": tracker_result["progress"],
                 "is_locked": self.session.gesture_validator.is_locked(),
             }
-            # The following 'aliases' block was incorrectly placed in the original instruction.
-            # It is not part of the ATMController class in the provided context.
-            # If it was intended to be a class member or part of a method, its placement needs clarification.
-            # For now, it's removed as it causes a syntax error and doesn't fit the current structure.
-            # aliases = {
             #   "push-enter": "push-button",
             #   "cancel": "cancel",
             #   "beep": "beep",
@@ -248,11 +250,16 @@ class ATMController:
             # 5. Inactivity Check
             if self.session.check_inactivity():
                 # Re-trigger current state's prompt/guidance
-                active_state = self.state_machine.modal_stack[-1] if self.state_machine.modal_stack else self.state_machine.current_state
+                sm = self.state_machine
+                active_state = (
+                    sm.modal_stack[-1] if sm.modal_stack else sm.current_state
+                )
                 if active_state:
                     # Repeat voice guidance
                     from src.core.audio_policy import AudioPolicy
-                    target_key = AudioPolicy.get_audio_key(active_state, self.shared_context)
+                    target_key = AudioPolicy.get_audio_key(
+                        active_state, self.shared_context
+                    )
                     if target_key:
                         self.audio.play_voice(target_key)
 
@@ -268,6 +275,26 @@ class ATMController:
         except Exception as e:
             print(f"メインループ内で予期せぬエラー: {e}")
             traceback.print_exc()
+
+            # Rule 5: Fail-Safe & Escalation
+            self._recoverable_retry_count = getattr(self, "_recoverable_retry_count", 0) + 1
+
+            # Classification logic (Simplified for robustness)
+            is_fatal = isinstance(e, (AttributeError, TypeError, NameError))
+            if self._recoverable_retry_count > 5:
+                is_fatal = True
+                print("Max recoverable retries exceeded. Escalating to Fatal.")
+
+            if is_fatal:
+                print("致命的なエラーが発生しました。ループを停止します。")
+                self.ui.render_frame(None, {
+                    "mode": "result",
+                    "message": "error.system_fatal",
+                    "is_error": True
+                })
+                return
+
+            # Recoverable Backoff: Skip frame and try again after 1s
             self.root.after(1000, self.update_loop)
 
     def on_close(self):

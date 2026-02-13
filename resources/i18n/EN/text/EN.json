@@ -51,7 +51,7 @@
         "safety": "This PIN is not secure. Please enter a different number.",
         "mismatch": "PINs do not match. Please start over from the beginning.",
         "mismatch_retry": "PINs do not match. Please try again.",
-        "incorrect": "Incorrect PIN.\n({} attempts remaining)",
+        "incorrect": "Incorrect PIN.\n({remaining} attempts remaining)",
         "locked": "Account locked due to too many incorrect attempts.\nThis account cannot be used."
       }
     },
@@ -104,5 +104,8 @@
       "dll": "Required system components (DLL) are missing. Please install the MSVC Redistributable package.",
       "model": "AI model file not found. Please check the resources/model folder.",
       "generic": "An unknown error occurred. Please check the logs or contact the developer."
+    },
+    "unit": {
+      "currency": "JPY"
     }
 }
