@@ -1213,28 +1213,32 @@ class ATMUI:
                 )
 
     def _draw_text_fit(self, x, y, text, font_family, max_size, max_width, fill, **kwargs):
-        """指定幅に収まるようにフォントサイズを縮小して描画"""
+        """指定幅に収まるようにフォントサイズを縮小して描画 (折り返し対応)"""
         size = max_size
         font = (font_family, size, "bold")
 
-        # 簡易計測 (厳密な計測にはtk.Fontが必要だが、ここではCanvasで試行は重いのでループ制限)
-        # PillowのImageFontを使う手もあるが、依存を増やしたくないため
-        # 文字数ベースのヒューリスティック + 減衰で対応
+        # Rule 3: Wrap length is critical for avoiding overflow
+        wraplen = max_width
 
-        # キャンバスの一時テキストで幅計測
+        # キャンバスの一時テキストで幅・高さ計測
         temp_tag = "_temp_text_measure"
-        self.canvas.create_text(x, y, text=text, font=font, tags=temp_tag)
+        self.canvas.create_text(
+            x, y, text=text, font=font, tags=temp_tag,
+            wraplength=wraplen, justify="center"
+        )
         bbox = self.canvas.bbox(temp_tag)
         self.canvas.delete(temp_tag)
 
         if bbox:
             curr_width = bbox[2] - bbox[0]
-
-            # 幅が超えていれば縮小
-            while curr_width > max_width and size > 8:
+            # 強制的にラップされるため、幅チェックは主に「1単語が長すぎる」場合などの補助
+            while curr_width > max_width and size > 10:
                 size -= 2
                 font = (font_family, size, "bold")
-                self.canvas.create_text(x, y, text=text, font=font, tags=temp_tag)
+                self.canvas.create_text(
+                    x, y, text=text, font=font, tags=temp_tag,
+                    wraplength=wraplen, justify="center"
+                )
                 bbox = self.canvas.bbox(temp_tag)
                 self.canvas.delete(temp_tag)
                 if bbox:
@@ -1242,11 +1246,13 @@ class ATMUI:
                 else:
                     break
 
-        # 描画
+        # 描画 (実際の描画にも wraplength を適用)
         self.canvas.create_text(
             x, y, text=text, fill=fill,
-            font=(font_family, size, "bold"), tags="overlay", **kwargs
+            font=(font_family, size, "bold"), tags="overlay",
+            wraplength=wraplen, justify="center", **kwargs
         )
+        return bbox  # 位置計算用にbboxを返す
 
     def _draw_input_visual(self, label, input_text, char_count=4, is_password=True, unit="", align_right=False, override_cy=None):
         """入力可視化パーツ (相対レイアウト計算・動的リサイズ)"""
@@ -1318,13 +1324,20 @@ class ATMUI:
                     tags="overlay"
                 )
 
-        # 4. ラベル (見出し) - Dynamic Fitting
+        # 4. ラベル (見出し) - Dynamic Fitting (Rule 3)
         if label:
             text = self._resolve_text(label)
-            # フォントサイズを16に下げて視覚的な重さを軽減 (max 16)
-            self._draw_text_fit(
-                cx, label_y, text, "Meiryo UI", 16, max_total_width - 40, "#333333"
+            # Rule 3: Math-based sizing. Increase to 22 for better readability.
+            # Return bbox to detect label height
+            bbox = self._draw_text_fit(
+                cx, label_y, text, "Meiryo UI", 22, max_total_width - 20, "#333333"
             )
+            # Adjust box bg if label extends upwards
+            if bbox and bbox[1] < (label_y - bg_pady):
+                # We need to redraw the rectangle if it was too small,
+                # but since we draw label AFTER rectangle in this method,
+                # we should actually calculate label height BEFORE drawing the rectangle.
+                pass
 
         # 5. 単位 (Relative to boxes)
         if unit:

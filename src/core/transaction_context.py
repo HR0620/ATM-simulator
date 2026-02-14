@@ -43,6 +43,7 @@ class TransactionContext:
         self.amount = 0
         self.pin_input = ""
         self.first_pin = None
+        self.pin = None
         self.pin_step = 1
         self.pin_trials = 0
         self.pin_mode = "normal"
@@ -50,26 +51,12 @@ class TransactionContext:
         self.is_error = False
         self.result_message = ""
         self.result_message_params.clear()
-        self.extra.clear()
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Compatibility method for dictionary-like access."""
-        if hasattr(self, key):
-            return getattr(self, key)
-        # Special handling for 'name' to map to 'account_name'
-        if key == 'name' and self.account_name is not None:
-            return self.account_name
-        return self.extra.get(key, default)
-
-    def __setitem__(self, key: str, value: Any):
-        """Compatibility method for dictionary-like access."""
-        if hasattr(self, key):
-            setattr(self, key, value)
-        else:
-            self.extra[key] = value
-
-    def __getitem__(self, key: str) -> Any:
-        """Compatibility method for dictionary-like access."""
-        if hasattr(self, key):
-            return getattr(self, key)
-        return self.extra[key]
+    def validate_for_transaction(self):
+        """Perform transition-time validation."""
+        if self.transaction == "withdraw" and not self.account_number:
+            raise ValueError("Withdrawal requires account_number.")
+        if self.transaction == "transfer" and (not self.account_number or not self.target_account):
+            raise ValueError("Transfer requires both account_number and target_account.")
+        if self.transaction == "create_account" and not self.account_name:
+            raise ValueError("Account creation requires account_name.")

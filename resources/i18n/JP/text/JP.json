@@ -31,7 +31,7 @@
       "name": "お名前を入力してください",
       "amount": {
         "default": "金額を入力してください",
-        "balance": "金額を入力してください\n現在の貯蓄残高：{:,}円",
+        "balance": "金額を入力してください\n現在の貯蓄残高：{balance:,}円",
         "transfer": "お振込み金額を入力してください"
       },
       "account": {
@@ -83,7 +83,7 @@
       },
       "absent_warning": "長時間の離席を検知しました\n最初に戻りますか？",
       "complete": "処理が完了しました。",
-      "account_created": "口座を作成しました。\n\n口座番号 : {}\n\n",
+      "account_created": "口座を作成しました。\n\n口座番号 : {account_number}\n\n",
       "withdraw_complete": "お引出しが完了しました。\nお引出し後残高：{:,}円",
       "face": {
         "align_title": "顔検出",
