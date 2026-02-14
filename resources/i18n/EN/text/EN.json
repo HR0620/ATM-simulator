@@ -1,0 +1,111 @@
+{
+    "ui": {
+      "language": "Language",
+      "esc_exit": "ESC: Exit",
+      "select_language": "Select Language",
+      "thank_you": "Thank you for using our ATM",
+      "ondokusan": "Voice guidance: 音読さん (ondoku3.com)",
+      "main_menu": "Main Menu",
+      "details": "Details"
+    },
+    "btn": {
+      "next": "Next",
+      "back": "Back",
+      "yes": "Yes",
+      "no": "No",
+      "resume": "Resume",
+      "transfer": "Transfer",
+      "withdraw": "Withdrawal",
+      "create_account": "Open Account",
+      "confirm": "Confirm",
+      "correct": "Correction",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
+    },
+    "input": {
+      "pin": {
+        "default": "Please enter your PIN",
+        "first": "Please enter a 4-digit PIN to set",
+        "confirm": "Please enter the same PIN again for confirmation"
+      },
+      "name": "Please enter your name",
+      "amount": {
+        "default": "Please enter amount",
+        "balance": "Please enter amount\nCurrent balance: {:,} JPY",
+        "transfer": "Please enter transfer amount"
+      },
+      "account": {
+        "self": "Please enter your account number",
+        "target": "Please enter the recipient's account number"
+      }
+    },
+    "error": {
+      "general": "An error has occurred.",
+      "invalid_amount": "Invalid amount.",
+      "insufficient_balance": "Insufficient balance.",
+      "account": {
+        "invalid": "The entered account number is invalid.",
+        "frozen": "This account is currently unavailable."
+      },
+      "pin": {
+        "safety": "This PIN is not secure. Please enter a different number.",
+        "mismatch": "PINs do not match. Please start over from the beginning.",
+        "mismatch_retry": "PINs do not match. Please try again.",
+        "incorrect": "Incorrect PIN.\n({remaining} attempts remaining)",
+        "locked": "Account locked due to too many incorrect attempts.\nThis account cannot be used."
+      }
+    },
+    "confirm": {
+      "title": "Confirm Input",
+      "general": "Is this correct?",
+      "transfer": "Recipient: {target}\nAmount: {amount:,} JPY\n\nIs this correct?",
+      "withdraw": "Withdrawal amount: {amount:,} JPY\n\nIs this correct?",
+      "create_account": "Account Name: {name}\n\nIs this correct?"
+    },
+    "guidance": {
+      "action": "Select via Click or Gesture",
+      "select_action": "Please select 'Next' or 'Back'",
+      "confirm_choice": "Please select 'Yes' or 'No'",
+      "check_input": "Please check your input",
+      "empty": {
+        "pin": "Please enter your PIN",
+        "account": "Please enter 6-digit account number",
+        "name": "Please enter your name",
+        "amount": "Please enter amount"
+      }
+    },
+    "msg": {
+      "welcome": "Welcome",
+      "return_menu_countdown": "Returning to menu in {seconds}s",
+      "transaction_complete": "Transaction complete",
+      "error": {
+        "frozen": "Account is frozen"
+      },
+      "absent_warning": "User absence detected.\nWould you like to return to the beginning?",
+      "complete": "Processing complete.",
+      "account_created": "Account successfully created.\n\nAccount Number: {}\n\n",
+      "withdraw_complete": "Withdrawal complete.\nBalance after withdrawal: {:,} JPY",
+      "face": {
+        "align_title": "Face Detection",
+        "align": "Please align your face within the frame",
+        "waiting": "Please align your face within the frame",
+        "detecting": "Authenticating..."
+      }
+    },
+    "loading": {
+      "init": "Initializing system...",
+      "deps": "Checking dependencies...",
+      "ai": "Starting AI engine (this may take a while)...",
+      "core": "Loading core components...",
+      "done": "Ready!"
+    },
+    "error_hints": {
+      "avx": "This CPU may not support the AVX instruction set. Please try on a newer PC.",
+      "dll": "Required system components (DLL) are missing. Please install the MSVC Redistributable package.",
+      "model": "AI model file not found. Please check the resources/model folder.",
+      "generic": "An unknown error occurred. Please check the logs or contact the developer."
+    },
+    "unit": {
+      "currency": "JPY"
+    }
+}

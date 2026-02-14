@@ -1,0 +1,111 @@
+{
+    "ui": {
+      "language": "Language",
+      "esc_exit": "ESC: 終了",
+      "select_language": "言語を選択してください",
+      "thank_you": "ご利用ありがとうございました",
+      "ondokusan": "音声案内:音読さん(ondoku3.com)",
+      "main_menu": "メインメニュー",
+      "details": "詳細"
+    },
+    "btn": {
+      "next": "進む",
+      "back": "戻る",
+      "yes": "はい",
+      "no": "いいえ",
+      "resume": "操作に戻る",
+      "transfer": "お振込み",
+      "withdraw": "お引き出し",
+      "create_account": "口座作成",
+      "confirm": "確定",
+      "correct": "訂正",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
+    },
+    "input": {
+      "pin": {
+        "default": "暗証番号を入力してください",
+        "first": "設定する暗証番号(4桁)を入力してください",
+        "confirm": "確認のため、もう一度入力してください"
+      },
+      "name": "お名前を入力してください",
+      "amount": {
+        "default": "金額を入力してください",
+        "balance": "金額を入力してください\n現在の貯蓄残高：{balance:,}円",
+        "transfer": "お振込み金額を入力してください"
+      },
+      "account": {
+        "self": "口座番号を入力してください",
+        "target": "お振込み先の口座番号を入力してください"
+      }
+    },
+    "error": {
+      "general": "エラーが発生しました。",
+      "invalid_amount": "金額が不正です。",
+      "insufficient_balance": "残高が不足しています。",
+      "account": {
+        "invalid": "ご入力いただいた口座番号はお取り扱いできません。",
+        "frozen": "こちらの口座は現在ご利用いただけません。"
+      },
+      "pin": {
+        "safety": "この暗証番号は設定できません。別の番号を入力してください。",
+        "mismatch": "入力された暗証番号が一致しません。最初からやり直してください。",
+        "mismatch_retry": "暗証番号が一致しません。もう一度入力してください",
+        "incorrect": "暗証番号が正しくありません。\n（あと {remaining} 回入力できます）",
+        "locked": "規定の回数を超えて暗証番号が入力されたため、\nこの口座はお取り扱いできません。"
+      }
+    },
+    "confirm": {
+      "title": "入力内容の確認",
+      "general": "よろしいですか？",
+      "transfer": "お振込み先 : {target}\nお振込み金額 : {amount:,}円\n\nよろしいですか？",
+      "withdraw": "お引き出し金額 : {amount:,}円\n\nよろしいですか？",
+      "create_account": "口座名義 : {name}\n\nよろしいですか？"
+    },
+    "guidance": {
+      "action": "クリックまたはジェスチャーで選択",
+      "select_action": "「進む」または「戻る」を選択してください",
+      "confirm_choice": "「はい」または「いいえ」を選択してください",
+      "check_input": "入力内容を確認してください",
+      "empty": {
+        "pin": "暗証番号を入力してください",
+        "account": "口座番号を6桁で入力してください",
+        "name": "お名前を入力してください",
+        "amount": "金額を入力してください"
+      }
+    },
+    "msg": {
+      "welcome": "いらっしゃいませ",
+      "return_menu_countdown": "メニューへ戻る: {seconds}秒",
+      "transaction_complete": "お取り引きが完了しました",
+      "error": {
+        "frozen": "口座が凍結されています"
+      },
+      "absent_warning": "長時間の離席を検知しました\n最初に戻りますか？",
+      "complete": "処理が完了しました。",
+      "account_created": "口座を作成しました。\n\n口座番号 : {account_number}\n\n",
+      "withdraw_complete": "お引出しが完了しました。\nお引出し後残高：{:,}円",
+      "face": {
+        "align_title": "顔検出",
+        "align": "顔を枠に合わせてください",
+        "waiting": "枠内に顔を合わせてください",
+        "detecting": "認証中..."
+      }
+    },
+    "loading": {
+      "init": "システムを初期化中...",
+      "deps": "依存関係をチェック中...",
+      "ai": "AIエンジンを起動中 (これには時間がかかります)...",
+      "core": "コアコンポーネントをロード中...",
+      "done": "準備完了！"
+    },
+    "error_hints": {
+      "avx": "このCPUはAVX命令セットをサポートしていない可能性があります。より新しいPCで試してください。",
+      "dll": "必須のシステムコンポーネント(DLL)が不足しています。MSVC再配布可能パッケージをインストールしてください。",
+      "model": "AIモデルファイルが見つかりません。resources/model フォルダを確認してください。",
+      "generic": "不明なエラーが発生しました。ログを確認するか、開発者に問い合わせてください。"
+    },
+    "unit": {
+      "currency": "円"
+    }
+}

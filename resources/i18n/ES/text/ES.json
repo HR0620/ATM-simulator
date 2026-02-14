@@ -1,0 +1,111 @@
+{
+    "ui": {
+      "language": "Language",
+      "esc_exit": "ESC: Salir",
+      "select_language": "Seleccionar idioma",
+      "thank_you": "Gracias por utilizar nuestro servicio",
+      "ondokusan": "Guía de voz: 音読さん (ondoku3.com)",
+      "main_menu": "Menú Principal",
+      "details": "Detalles"
+    },
+    "btn": {
+      "next": "Siguiente",
+      "back": "Atrás",
+      "yes": "Sí",
+      "no": "No",
+      "resume": "Volver a la operación",
+      "transfer": "Transferencia",
+      "withdraw": "Retirada",
+      "create_account": "Crear cuenta",
+      "confirm": "Confirmar",
+      "correct": "Corregir",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
+    },
+    "input": {
+      "pin": {
+        "default": "Introduzca su número PIN",
+        "first": "Introduzca el PIN de 4 dígitos que desea configurar",
+        "confirm": "Introduzca el PIN de nuevo para confirmar"
+      },
+      "name": "Introduzca su nombre",
+      "amount": {
+        "default": "Introduzca el importe",
+        "balance": "Introduzca el importe\nSaldo actual: {:,} JPY",
+        "transfer": "Introduzca el importe de la transferencia"
+      },
+      "account": {
+        "self": "Introduzca su número de cuenta",
+        "target": "Introduzca el número de cuenta del destinatario"
+      }
+    },
+    "error": {
+      "general": "Ha ocurrido un error.",
+      "invalid_amount": "Importe no válido.",
+      "insufficient_balance": "Saldo insuficiente.",
+      "account": {
+        "invalid": "El número de cuenta introducido no es válido.",
+        "frozen": "Esta cuenta no está disponible actualmente."
+      },
+      "pin": {
+        "safety": "PIN no seguro. Por favor, introduzca un número diferente.",
+        "mismatch": "Los números PIN no coinciden. Comience de nuevo.",
+        "mismatch_retry": "Los números PIN no coinciden. Inténtelo de nuevo",
+        "incorrect": "PIN incorrecto.\n(Quedan {remaining} intentos)",
+        "locked": "Cuenta bloqueada por demasiados intentos fallidos.\nOperación no permitida."
+      }
+    },
+    "confirm": {
+      "title": "Confirmación",
+      "general": "¿Es correcto?",
+      "transfer": "Destinatario: {target}\nImporte: {amount:,} JPY\n\n¿Es correcto?",
+      "withdraw": "Importe de retirada: {amount:,} JPY\n\n¿Es correcto?",
+      "create_account": "Titular de la cuenta: {name}\n\n¿Es correcto?"
+    },
+    "guidance": {
+      "action": "Seleccionar mediante clic o gesto",
+      "select_action": "Seleccione 'Siguiente' o 'Atrás'",
+      "confirm_choice": "Seleccione 'Sí' o 'No'",
+      "check_input": "Verifique los datos introducidos",
+      "empty": {
+        "pin": "Introduzca su número PIN",
+        "account": "Introduzca un número de cuenta de 6 dígitos",
+        "name": "Introduzca su nombre",
+        "amount": "Introduzca el importe"
+      }
+    },
+    "msg": {
+      "welcome": "Bienvenido",
+      "return_menu_countdown": "Volviendo al menú en {seconds} s",
+      "transaction_complete": "Transacción completada con éxito",
+      "error": {
+        "frozen": "Cuenta congelada"
+      },
+      "absent_warning": "Se ha detectado una ausencia prolongada\n¿Volver al inicio?",
+      "complete": "Proceso completado.",
+      "account_created": "Cuenta creada con éxito.\n\nNúmero de cuenta: {}\n\n",
+      "withdraw_complete": "Retirada completada.\nSaldo restante: {:,} JPY",
+      "face": {
+        "align_title": "Detección Facial",
+        "align": "Encuadre su cara",
+        "waiting": "Encuadre su cara dentro del recuadro",
+        "detecting": "Autenticando..."
+      }
+    },
+    "loading": {
+      "init": "Iniciando sistema...",
+      "deps": "Comprobando dependencias...",
+      "ai": "Iniciando motor AI (esto puede tardar)...",
+      "core": "Cargando componentes principales...",
+      "done": "¡Listo!"
+    },
+    "error_hints": {
+      "avx": "Es posible que esta CPU no soporte AVX. Inténtelo en un PC más reciente.",
+      "dll": "Faltan componentes del sistema (DLL). Instale MSVC Redistributable.",
+      "model": "No se encontró el modelo AI. Revise la carpeta resources/model.",
+      "generic": "Error desconocido. Revise los registros o contacte al desarrollador."
+    },
+    "unit": {
+      "currency": "JPY"
+    }
+  }

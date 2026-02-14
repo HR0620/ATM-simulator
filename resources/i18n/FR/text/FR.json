@@ -1,0 +1,111 @@
+{
+    "ui": {
+      "language": "Language",
+      "esc_exit": "ESC: Quitter",
+      "select_language": "Choisir la langue",
+      "thank_you": "Merci d'avoir utilisé notre service",
+      "ondokusan": "Guidage vocal: 音読さん (ondoku3.com)",
+      "main_menu": "Menu Principal",
+      "details": "Détails"
+    },
+    "btn": {
+      "next": "Suivant",
+      "back": "Retour",
+      "yes": "Oui",
+      "no": "Non",
+      "resume": "Reprendre",
+      "transfer": "Virement",
+      "withdraw": "Retrait",
+      "create_account": "Créer un compte",
+      "confirm": "Confirmer",
+      "correct": "Corriger",
+      "lang_confirm": "Confirm",
+      "lang_back": "Back"
+    },
+    "input": {
+      "pin": {
+        "default": "Veuillez saisir votre code PIN",
+        "first": "Saisissez un code PIN à 4 chiffres à définir",
+        "confirm": "Saisissez à nouveau votre code PIN pour confirmation"
+      },
+      "name": "Veuillez saisir votre nom",
+      "amount": {
+        "default": "Veuillez saisir le montant",
+        "balance": "Saisissez le montant\nSolde actuel : {:,} JPY",
+        "transfer": "Saisissez le montant du virement"
+      },
+      "account": {
+        "self": "Veuillez saisir le numéro de compte",
+        "target": "Veuillez saisir le numéro de compte du destinataire"
+      }
+    },
+    "error": {
+      "general": "Une erreur est survenue.",
+      "invalid_amount": "Montant invalide.",
+      "insufficient_balance": "Solde insuffisant.",
+      "account": {
+        "invalid": "Le numéro de compte saisi est invalide.",
+        "frozen": "Ce compte est actuellement indisponible."
+      },
+      "pin": {
+        "safety": "Ce code PIN n'est pas sécurisé. Veuillez en choisir un autre.",
+        "mismatch": "Les codes PIN ne correspondent pas. Veuillez recommencer.",
+        "mismatch_retry": "Les codes PIN ne correspondent pas. Veuillez réessayer",
+        "incorrect": "Code PIN incorrect.\n(Encore {remaining} tentatives)",
+        "locked": "Compte verrouillé suite à trop de tentatives erronées.\nOpération impossible."
+      }
+    },
+    "confirm": {
+      "title": "Confirmation",
+      "general": "Est-ce correct ?",
+      "transfer": "Destinataire : {target}\nMontant : {amount:,} JPY\n\nEst-ce correct ?",
+      "withdraw": "Montant du retrait : {amount:,} JPY\n\nEst-ce correct ?",
+      "create_account": "Nom du compte : {name}\n\nEst-ce correct ?"
+    },
+    "guidance": {
+      "action": "Sélection par clic ou geste",
+      "select_action": "Veuillez choisir 'Suivant' ou 'Retour'",
+      "confirm_choice": "Veuillez choisir 'Oui' ou 'Non'",
+      "check_input": "Veuillez vérifier vos informations",
+      "empty": {
+        "pin": "Veuillez saisir votre code PIN",
+        "account": "Saisissez un numéro de compte à 6 chiffres",
+        "name": "Veuillez saisir votre nom",
+        "amount": "Veuillez saisir le montant"
+      }
+    },
+    "msg": {
+      "welcome": "Bienvenue",
+      "return_menu_countdown": "Retour au menu dans {seconds} s",
+      "transaction_complete": "Transaction effectuée avec succès",
+      "error": {
+        "frozen": "Le compte est gelé"
+      },
+      "absent_warning": "Absence prolongée détectée\nRetourner au début ?",
+      "complete": "Opération terminée.",
+      "account_created": "Compte créé avec succès.\n\nNuméro de compte : {}\n\n",
+      "withdraw_complete": "Retrait effectué.\nSolde après retrait : {:,} JPY",
+      "face": {
+        "align_title": "Détection Faciale",
+        "align": "Veuillez cadrer votre visage",
+        "waiting": "Veuillez cadrer votre visage dans le cadre",
+        "detecting": "Authentification en cours..."
+      }
+    },
+    "loading": {
+      "init": "Initialisation du système...",
+      "deps": "Vérification des dépendances...",
+      "ai": "Lancement du moteur AI (cela peut prendre du temps)...",
+      "core": "Chargement des composants système...",
+      "done": "Prêt !"
+    },
+    "error_hints": {
+      "avx": "Ce processeur ne supporte peut-être pas AVX. Essayez sur un PC plus récent.",
+      "dll": "Composants système (DLL) manquants. Installez MSVC Redistributable.",
+      "model": "Modèle AI introuvable. Vérifiez le dossier resources/model.",
+      "generic": "Erreur inconnue. Vérifiez les logs ou contactez le développeur."
+    },
+    "unit": {
+      "currency": "JPY"
+    }
+  }
